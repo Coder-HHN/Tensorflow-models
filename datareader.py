@@ -3,8 +3,7 @@
 import os
 import sys
 import tensorflow as tf
-from PIL import Image
-
+import utils
 """
 模块说明：
     数据读取类
@@ -14,11 +13,9 @@ from PIL import Image
 函数说明：
     1）初始化函数
       def __init__(self): 
-    2）获取图像信息
-      def get_img_info(image_path):10000):
-    3）读取TFrecords文件
+    2）读取TFrecords文件
       def read_and_decode(tfrecord_files,image_height,image_width,image_mode,is_shuffle=True):
-    4）流水线输出单个样例或批样例
+    3）流水线输出单个样例或批样例，在2）的基础上实现了
       def pipeline_read(dataset_type,tfrecord_path,image_height,image_width,image_mode,is_batch=False,is_shuffle=True,
     batch_size=32,min_queue_examples=1000,num_threads=8):
 文件夹样板说明：
@@ -53,20 +50,19 @@ from PIL import Image
 
 class datareader:
 
-  #初始化函数
   def __init(self,tfrecord_path,image_height=128,image_width=128,image_mode='L',is_batch=False,is_shuffle=True,
     batch_size=64,min_queue_examples=1024,num_threads=8,name=''):
-    """
-      Args: 
-        tfrecord_path: string, TFrecord文件夹路径  <-注意！！！！是TFrecord文件夹路径！
-        image_height: int, 图像高度
-        image_width: int, 图像宽度
-        image_mode: string, 图像模式
-        is_batch: bool, 单个样例输出或批样例输出
-        is_shuffle: string, 是否随机打乱样例队列中样例顺序
-        batch_size: int, 仅当is_batch = True时有效，批样例大小
-        num_threads: int，线程数
-        min_after_dequeue=：int,  预读取min_after_dequeue个样例进入队列，然后随机抽取batch_size个组成batch,该值越大样例随机性越高，占用内存越大
+    """初始化函数
+    Args: 
+      tfrecord_path: string, TFrecord文件夹路径  <-注意！！！！是TFrecord文件夹路径！
+      image_height: int, 图像高度
+      image_width: int, 图像宽度
+      image_mode: string, 图像模式
+      is_batch: bool, 单个样例输出或批样例输出
+      is_shuffle: string, 是否随机打乱样例队列中样例顺序
+      batch_size: int, 仅当is_batch = True时有效，批样例大小
+      num_threads: int，线程数
+      min_after_dequeue=：int,  预读取min_after_dequeue个样例进入队列，然后随机抽取batch_size个组成batch,该值越大样例随机性越高，占用内存越大
     """
     self.tfrecord_path = tfrecord_path
     self.image_height = image_height
@@ -78,34 +74,11 @@ class datareader:
     self.num_threads = num_threads
     self.min_after_dequeue = min_after_dequeue
     self.name = name
-  #获取图像信息
-  def get_img_info(self,image_path):
-    """
-      PIL中图像mode有9种，1/L/P/RBG/RBGA/CMYK/YCbCr/I/F
-      在此处仅介绍常用的三种，其余请自行查询！
-      L：8位像素灰度图，1通道
-      RGB：3x8位像素彩色图，3通道
-      RGBA：4x8位像素彩色图+透明通道，4通道
-      该函数获取图像格式等信息，为read_and_decode函数提供参数，若已知图像格式则不需调用
 
-      args:
-        image_path: string, 选定图像的路径
-      return: 
-        image_height: int, 图像高度
-        image_width: int, 图像宽度
-        image_mode: string, 图像模式   
-    """
-    image = Image.open(image_path)
-    image_height = image.size[0]
-    image_width = image.size[1]
-    image_mode = image.mode
-    return  image_height,image_width,image_mode
-
-  #读取并对TFrecords文件解码
   def read_and_decode(self,tfrecord_files):
-    """
-      return:
-        [image，label]: 图像和标签
+    """读取并对TFrecords文件解码
+    Return:
+      [image，label]: 图像和标签
     """
     with tf.name_scope(self.name):
       filename_queue = tf.train.string_input_producer(tfrecord_files,shuffle=self.is_shuffle)	#根据文件名生成一个队列 

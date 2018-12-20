@@ -49,17 +49,16 @@ from PIL import Image
 
 class dataprocess():
 
-  #初始化函数
   def __init__(self,dataset_path,classes,image_height=128,image_width=128,is_devide=True,by_class=True,num_per_tf=1000):
-    """
-      Args: 
-        dataset_path: string,  原始数据集存储路径,即Data文件夹所在路径
-        classes：list, 要设置的标签列表，例：[car,airplane,ship,...],建议采用方括号
-        image_height: integer, 图像高度
-        image_width: integer, 图像宽度
-        is_devide: bool, 是否对数据集进行分割来生成多个tfrecord文件
-        by_class: bool, 按照类别or样例数量来分割数据集
-        num_per_tf: integer, 仅当by_class=False时有效，每个tfrecord文件存储的样例个数
+    """初始化函数
+    Args: 
+      dataset_path: string,  原始数据集存储路径,即Data文件夹所在路径
+      classes：list, 要设置的标签列表，例：[car,airplane,ship,...],建议采用方括号
+      image_height: integer, 图像高度
+      image_width: integer, 图像宽度
+      is_devide: bool, 是否对数据集进行分割来生成多个tfrecord文件
+      by_class: bool, 按照类别or样例数量来分割数据集
+      num_per_tf: integer, 仅当by_class=False时有效，每个tfrecord文件存储的样例个数
     """
     self.dataset_path = dataset_path
     self.classes = classes
@@ -70,7 +69,7 @@ class dataprocess():
     self.num_per_tf = num_per_tf
     self.name = name
 
-  #TFrecord支持的三种数据类型
+  # Helpers
   def _int64_feature(value):
     return tf.train.Feature(int64_list = tf.train.Int64List(value=[value]))
 
@@ -80,16 +79,11 @@ class dataprocess():
   def _float_feature(value):
     return tf.train.Feature(float_list = tf.train.FloatList(value=[value]))
 
-  #图像编码函数
   def encode_img(self,img_path,label):
-    """
-      图像编码函数,目的是为了将write_to_TFrecord函数中不同逻辑当中的重复代码进行简化
-      若需要修改图像封装格式，请在此处修改即可。
-      args:
-        img_path: string, 单张图片
-        label: int, 图像标签，从0开始
-      return：
-        一个编码后的example
+    """图像编码函数,目的是为了将write_to_TFrecord函数中不同逻辑当中的重复代码进行简化
+    Args:
+      img_path: string, 单张图片
+      label: int, 图像标签，从0开始
     """
     img = Image.open(img_path)
     img = img.resize((self.image_height,self.image_width))
@@ -106,57 +100,60 @@ class dataprocess():
     )
     return example
 
-  #读入图像和标签并转为TFrecords文件
   def write_to_TFrecord(self,dataset_type):
+    """读入图像和标签并转为TFrecords文件
+    Args: 
+      dataset_type: string,  该值设为train表示正在转换训练集，test表示正在转换测试集
     """
-      Args: 
-        dataset_type: string,  该值设为train表示正在转换训练集，test表示正在转换测试集
-    """
+    #创建文件夹存储TFrecord文件
     if not os.path.exists('TFrecord/'+dataset_type+'/'):
       os.makedirs('TFrecord/'+dataset_type+'/')
-    if is_devide == True:
-      #生成的TF文件默认存储在TFrecord文件夹下
+
+    #校验训练数据类型是否齐全
+    for index,name in enumerate(self.classes):
+      class_path = self.dataset_path+'/'+dataset_type+'/'+name
+        if not os.path.exists(class_path):
+          print(class_path+'is not exist!')
+          sys.exit()
+
+    #将训练集或测试集生成为单个TF文件
+    if is_devide == False:
       Destfile = tf.python_io.TFRecordWriter('TFrecord/'+dataset_type+'/'+dataset_type+'.tfrecord')
       for index,name in enumerate(self.classes):
         class_path = self.dataset_path+'/'+dataset_type+'/'+name
-          if not os.path.exists(class_path):
-            print(class_path+'is not exist!')
-            sys.exit()
           for img_name in os.listdir(class_path):
             img_path = class_path+'/'+img_name   #每张图片的地址
             example = encode_img(img_path,index)    #编码图像
             Destfile.write(example.SerializeToString())	 #序列化为字符串
       Destfile.close()
-    elif is_devide = False:
+
+    #将训练集或测试集拆分生成为多个TF文件  
+    elif is_devide = True:
+
+      #按照数据类别拆分，每个TF文件存储一类数据
       if by_class == True:
         for index,name in enumerate(self.classes):
           class_path = self.dataset_path+'/'+dataset_type+'/'+name
-          if not os.path.exists(class_path):
-            print(class_path+'is not exist!')
-            sys.exit()
-          #生成的TF文件按train和test分类别存放
           Destfile = tf.python_io.TFRecordWriter('TFrecord/'+dataset_type+'/'+name+'.tfrecord')
           for img_name in os.listdir(class_path):
-            img_path = class_path+'/'+img_name   #每张图片的地址
-            example = encode_img(img_path,index)    #编码图像
-            Destfile.write(example.SerializeToString())	 #序列化为字符串
+            img_path = class_path+'/'+img_name
+            example = encode_img(img_path,index)
+            Destfile.write(example.SerializeToString())
           Destfile.close()
+
+      #按照数据数量拆分，每个TF文件存储num_per_tf个样例
       elif by_class == False:
         icount_start = 0
-        icount_end = icount_start+devideNum
-        #生成的TF文件按train和test分类别存放
+        icount_end = icount_start+self.num_per_tf
         Destfile = tf.python_io.TFRecordWriter('TFrecord/'+dataset_type+'/'+dataset_type+'_'+str(icount_start)+
           '_'+str(icount_end)+'.tfrecord')
         for index,name in enumerate(self.classes):
           class_path = self.dataset_path+'/'+dataset_type+'/'+name
-          if not os.path.exists(class_path):
-            print(class_path+'is not exist!')
-            sys.exit()
           length = len(os.listdir(class_path))
           for img_name in os.listdir(class_path):
-            img_path = class_path+'/'+img_name    #每张图片的地址
-            example = encode_img(img_path,index)    #编码图像
-            Destfile.write(example.SerializeToString())    #序列化为字符串
+            img_path = class_path+'/'+img_name
+            example = encode_img(img_path,index)
+            Destfile.write(example.SerializeToString())
             length = length-1
             icount_start += 1
             if length == 0 and index == len(self.classes)-1: 
@@ -169,8 +166,7 @@ class dataprocess():
                   '_'+str(icount_end)+'.tfrecord')
 
   def test_writer():
-    """
-      示例程序:将图像及标签写入TFrecord文件
+    """示例程序:将图像及标签写入TFrecord文件
     """
     datapath = './Data'  #设置TFrecord文件夹路径
     classes = ['airplane','automobile','ship']

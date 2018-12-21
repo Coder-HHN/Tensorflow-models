@@ -3,7 +3,7 @@
 import os
 import sys
 import tensorflow as tf
-from PIL import Image
+from PIL import Image as Img
 
 """
 模块说明：
@@ -69,32 +69,22 @@ class dataprocess():
     self.num_per_tf = num_per_tf
     self.name = name
 
-  # Helpers
-  def _int64_feature(value):
-    return tf.train.Feature(int64_list = tf.train.Int64List(value=[value]))
-
-  def _bytes_feature(value):
-    return tf.train.Feature(bytes_list = tf.train.BytesList(value=[value]))
-
-  def _float_feature(value):
-    return tf.train.Feature(float_list = tf.train.FloatList(value=[value]))
-
-  def encode_img(self,img_path,label):
+  def encode_image(self,image_path,label):
     """图像编码函数,目的是为了将write_to_TFrecord函数中不同逻辑当中的重复代码进行简化
     Args:
-      img_path: string, 单张图片
+      image_path: string, 单张图片
       label: int, 图像标签，从0开始
     """
-    img = Image.open(img_path)
-    img = img.resize((self.image_height,self.image_width))
-    img_raw = img.tobytes()    #图片转化为二进制格式
-    example = tf.train.Example(    #对label和img数据进行封装
+    image = Img.open(image_path)
+    image = image.resize((self.image_height,self.image_width))
+    image_raw = image.tobytes()    #图片转化为二进制格式
+    example = tf.train.Example(    #对label和image数据进行封装
       features = tf.train.Features(
         feature = {
-          'height':_int64_feature(img.size[0]),
-          'widith':_int64_feature(img.size[1]),
+          'height':_int64_feature(image.size[0]),
+          'widith':_int64_feature(image.size[1]),
           'label': _int64_feature(label),
-          'img_raw':_bytes_feature(img_raw)
+          'image_raw':_bytes_feature(image_raw)
         }
       )
     )
@@ -121,9 +111,9 @@ class dataprocess():
       Destfile = tf.python_io.TFRecordWriter('TFrecord/'+dataset_type+'/'+dataset_type+'.tfrecord')
       for index,name in enumerate(self.classes):
         class_path = self.dataset_path+'/'+dataset_type+'/'+name
-          for img_name in os.listdir(class_path):
-            img_path = class_path+'/'+img_name   #每张图片的地址
-            example = encode_img(img_path,index)    #编码图像
+          for image_name in os.listdir(class_path):
+            image_path = class_path+'/'+image_name   #每张图片的地址
+            example = encode_image(image_path,index)    #编码图像
             Destfile.write(example.SerializeToString())	 #序列化为字符串
       Destfile.close()
 
@@ -135,9 +125,9 @@ class dataprocess():
         for index,name in enumerate(self.classes):
           class_path = self.dataset_path+'/'+dataset_type+'/'+name
           Destfile = tf.python_io.TFRecordWriter('TFrecord/'+dataset_type+'/'+name+'.tfrecord')
-          for img_name in os.listdir(class_path):
-            img_path = class_path+'/'+img_name
-            example = encode_img(img_path,index)
+          for image_name in os.listdir(class_path):
+            image_path = class_path+'/'+image_name
+            example = encode_image(image_path,index)
             Destfile.write(example.SerializeToString())
           Destfile.close()
 
@@ -150,9 +140,9 @@ class dataprocess():
         for index,name in enumerate(self.classes):
           class_path = self.dataset_path+'/'+dataset_type+'/'+name
           length = len(os.listdir(class_path))
-          for img_name in os.listdir(class_path):
-            img_path = class_path+'/'+img_name
-            example = encode_img(img_path,index)
+          for image_name in os.listdir(class_path):
+            image_path = class_path+'/'+image_name
+            example = encode_image(image_path,index)
             Destfile.write(example.SerializeToString())
             length = length-1
             icount_start += 1
@@ -163,18 +153,28 @@ class dataprocess():
                 icount_end = icount_start+self.num_per_tf
                 Destfile.close()
                 Destfile = tf.python_io.TFRecordWriter('TFrecord/'+dataset_type+'/'+dataset_type+'_'+str(icount_start)+
-                  '_'+str(icount_end)+'.tfrecord')
+                  '_'+str(icount_end)+'.tfrecord')              
 
-  def test_writer():
-    """示例程序:将图像及标签写入TFrecord文件
-    """
-    datapath = './Data'  #设置TFrecord文件夹路径
-    classes = ['airplane','automobile','ship']
-    image_width = 128
-    image_height = 128
-    writer = dataprocess(datapath,classes,image_height,image_width)
-    writer.write_to_TFrecord('train')
-    writer.write_to_TFrecord('test')
+  ### Helpers
+  def _int64_feature(value):
+    return tf.train.Feature(int64_list = tf.train.Int64List(value=[value]))
+
+  def _bytes_feature(value):
+    return tf.train.Feature(bytes_list = tf.train.BytesList(value=[value]))
+
+  def _float_feature(value):
+    return tf.train.Feature(float_list = tf.train.FloatList(value=[value]))
+
+def test_writer():
+  """示例程序:将图像及标签写入TFrecord文件
+  """
+  datapath = './Data'  #设置TFrecord文件夹路径
+  classes = ['airplane','automobile','ship']
+  image_width = 128
+  image_height = 128
+  writer = dataprocess(datapath,classes,image_height,image_width)
+  writer.write_to_TFrecord('train')
+  writer.write_to_TFrecord('test')
 if __name__ == '__main__':
   test_writer()
 

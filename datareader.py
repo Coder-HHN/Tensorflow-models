@@ -13,9 +13,9 @@ import utils
 函数说明：
     1）初始化函数
       def __init__(self): 
-    2）读取TFrecords文件
+    2）读取TFrecords文件，实现了流水线读取中的文件名队列
       def read_and_decode(tfrecord_files,image_height,image_width,image_mode,is_shuffle=True):
-    3）流水线输出单个样例或批样例，在2）的基础上实现了
+    3）流水线输出单个样例或批样例，对2）进行了进一步封装，实现了样例队列
       def pipeline_read(dataset_type,tfrecord_path,image_height,image_width,image_mode,is_batch=False,is_shuffle=True,
     batch_size=32,min_queue_examples=1000,num_threads=8):
 文件夹样板说明：
@@ -54,7 +54,7 @@ class datareader:
     batch_size=64,min_queue_examples=1024,num_threads=8,name=''):
     """初始化函数
     Args: 
-      tfrecord_path: string, TFrecord文件夹路径  <-注意！！！！是TFrecord文件夹路径！
+      tfrecord_path: string, TFrecord文件夹路径
       image_height: int, 图像高度
       image_width: int, 图像宽度
       image_mode: string, 图像模式
@@ -75,13 +75,29 @@ class datareader:
     self.min_after_dequeue = min_after_dequeue
     self.name = name
 
+  def _preprocess(self, image):
+  	#若需要处理非L/RGB/RGBA类型的图像，请自行添加代码
+    if self.image_mode == 'L':
+      image = tf.reshape(image,[self.image_height,self.image_width])
+    elif self.image_mode == 'RGB':
+      image = tf.reshape(image,[self.image_height,self.image_width,3])
+      image = utils.convert2float(image)
+    elif self.image_mode == 'RGBA':
+      image = tf.reshape(image,[self.image_height,self.image_width,4])
+      image = utils.convert2float(image)
+      #image = tf.cast(image,tf.float32)*(1./255)-0.5
+    else:
+      print('The image mode must be L/RGB/RGBA!')
+      sys.exit()
+    return image
+
   def read_and_decode(self,tfrecord_files):
-    """读取并对TFrecords文件解码
+    """ 读取并对TFrecords文件解码
     Return:
       [image，label]: 图像和标签
     """
     with tf.name_scope(self.name):
-      filename_queue = tf.train.string_input_producer(tfrecord_files,shuffle=self.is_shuffle)	#根据文件名生成一个队列 
+      filename_queue = tf.train.string_input_producer(tfrecord_files,shuffle=self.is_shuffle)	#构造文件名队列 
       reader = tf.TFRecordReader()
       _,serialized_example = reader.read(filename_queue)	#返回的文件名和文件
       features = tf.parse_single_example(
@@ -90,25 +106,14 @@ class datareader:
             'height':tf.FixedLenFeature([],tf.int64),
             'widith':tf.FixedLenFeature([],tf.int64),
             'label': tf.FixedLenFeature([],tf.int64),
-            'img_raw':tf.FixedLenFeature([],tf.string),
+            'image_raw':tf.FixedLenFeature([],tf.string),
           }
       )
-    #将字符串转为uint8张量,这里仅读取img_raw和label，有需要读取图像尺寸信息的请自行修改
-      img = tf.decode_raw(features['img_raw'],tf.uint8)	
+    #将字符串转为uint8张量,这里仅读取image_raw和label，有需要读取图像尺寸信息的请自行修改
+      image = tf.decode_raw(features['image_raw'],tf.uint8)	
       label = tf.cast(features['label'],tf.int32)
-    #若需要处理非L/RGB/RGBA类型的图像，请自行添加代码
-      if image_mode == 'L':
-          img = tf.reshape(img,[self.image_height,self.image_width])
-      elif image_mode == 'RGB':
-          img = tf.reshape(img,[self.image_height,self.image_width,3])
-          #img = tf.cast(img,tf.float32)*(1./255)-0.5
-      elif image_mode == 'RGBA':
-          img = tf.reshape(img,[self.image_height,self.image_width,4])
-          #img = tf.cast(img,tf.float32)*(1./255)-0.5
-      else:
-          print('The image mode must be L/RGB/RGBA!')
-          sys.exit()
-      return img,label
+      image = self._preprocess(image)
+      return image,label
 
   def pipeline_read(self,dataset_type):
     """
@@ -123,51 +128,51 @@ class datareader:
             TFreocrd_file_list.append(os.path.join(root,filetmp))
       #若输出单个样例
       if is_batch == False:
-        img,label=read_and_decode(TFreocrd_file_list)
-        return img,label
+        image,label=read_and_decode(TFreocrd_file_list)
+        return image,label
       #输出批样例，这里实现了样例队列
       elif is_batch == True:
-        img,label=read_and_decode(TFreocrd_file_list)
-        img_batch,label_batch = tf.train.shuffle_batch([img,label],batch_size = self.batch_size,
+        image,label=read_and_decode(TFreocrd_file_list)
+        image_batch,label_batch = tf.train.shuffle_batch([image,label],batch_size = self.batch_size,
           capacity = self.min_queue_examples+3*self.batch_size,min_after_dequeue = self.min_queue_examples)
-        return img_batch,label_batch
+        return image_batch,label_batch
 
-  def check_reader():
-    """
-      检验reader读取的图像结果是否正确
-    """
-    TFrecordPath = './TFrecord'	#设置TFrecord文件夹路径
-    classes = ['airplane','automobile','ship']
-    image_height,image_width,image_mode= get_img_info('./Data/train/airplane/airplane5.png')
-    if not os.path.exists('./image'):
-      os.makedirs('./image') 
-    with tf.Graph().as_default():
-      reader = datareader('./TFrecord',image_height,image_width,image_mode,is_batch=False,is_shuffle=True,
-                            batch_size=64,min_queue_examples=1024,num_threads=8,name='')
-      image,label = reader.pipline_read('train')
-      with tf.Session() as sess:
-        init_op = tf.global_variables_initializer()
-	      sess.run(init_op)
-	      coord = tf.train.Coordinator()
-   	    threads = tf.train.start_queue_runners(coord = coord)
-        try:
-          for k in range(3):
-            if not coord.should_stop():
-              example,l = sess.run([image,label])
-              for i in range(13):
-                img = Image.fromarray(example[i],mode)
-                img.save('image/'+str(k)+'_'+str(i)+'_Label_'+str(l[i])+'.jpg')
-                #print(example,l)
-        except KeyboardInterrupt:
-          print('Interrupted')
-          coord.request_stop()
-        except tf.errors.OutOfRangeError:
-          print('OutOfRangeError')
-          coord.request_stop()
-        finally:
-          # When done, ask the threads to stop.
-          coord.request_stop()
-          coord.join(threads)
+###
+def check_reader():
+  """检验reader读取的图像结果是否正确
+  """
+  TFrecordPath = './TFrecord'	#设置TFrecord文件夹路径
+  classes = ['airplane','automobile','ship']
+  image_height,image_width,image_mode= get_image_info('./Data/train/airplane/airplane5.png')
+  if not os.path.exists('./image'):
+    os.makedirs('./image') 
+  with tf.Graph().as_default():
+    reader = datareader('./TFrecord',image_height,image_width,image_mode,is_batch=False,is_shuffle=True,
+        batch_size=64,min_queue_examples=1024,num_threads=8,name='')
+    image,label = reader.pipline_read('train')
+    with tf.Session() as sess:
+      init_op = tf.global_variables_initializer()
+      sess.run(init_op)
+      coord = tf.train.Coordinator()
+      threads = tf.train.start_queue_runners(coord = coord)
+      try:
+        for k in range(3):
+          if not coord.should_stop():
+            example,l = sess.run([image,label])
+            for i in range(13):
+              image = Image.fromarray(example[i],mode)
+              image.save('image/'+str(k)+'_'+str(i)+'_Label_'+str(l[i])+'.jpg')
+              #print(example,l)
+      except KeyboardInterrupt:
+        print('Interrupted')
+        coord.request_stop()
+      except tf.errors.OutOfRangeError:
+        print('OutOfRangeError')
+        coord.request_stop()
+      finally:
+        # When done, ask the threads to stop.
+        coord.request_stop()
+        coord.join(threads)
 
 if __name__ == '__main__':
   check_reader()

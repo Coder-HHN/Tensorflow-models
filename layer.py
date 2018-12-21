@@ -14,7 +14,7 @@ def conv(x, filter_height, filter_width, num_filters, stride_y, stride_x, name,
   # Create lambda function for the convolution
   convolve = lambda i, k: tf.nn.conv2d(i, k,strides=[1, stride_y, stride_x, 1],padding=padding)
 
-  with tf.variable_scope(name) as scope:
+  with tf.variable_scope(name,):
     # Create tf variables for the weights and biases of the conv layer
     weights = tf.get_variable('weights', shape=[filter_height,
                                                 filter_width,

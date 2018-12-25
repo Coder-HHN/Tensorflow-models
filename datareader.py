@@ -58,9 +58,7 @@ class datareader:
       image_height: int, 图像高度
       image_width: int, 图像宽度
       image_mode: string, 图像模式
-      is_batch: bool, 单个样例输出或批样例输出
-      is_shuffle: string, 是否随机打乱样例队列中样例顺序
-      batch_size: int, 仅当is_batch = True时有效，批样例大小
+      batch_size: int, 批样例大小
       num_threads: int，线程数
       min_after_dequeue=：int,  预读取min_after_dequeue个样例进入队列，然后随机抽取batch_size个组成batch,该值越大样例随机性越高，占用内存越大
     """
@@ -68,15 +66,18 @@ class datareader:
     self.image_height = image_height
     self.image_width = image_width
     self.image_mode = image_mode
-    self.is_batch = is_batch
-    self.is_shuffle = is_shuffle
     self.batch_size = batch_size
     self.num_threads = num_threads
     self.min_after_dequeue = min_after_dequeue
     self.name = name
 
   def _preprocess(self, image):
-  	#若需要处理非L/RGB/RGBA类型的图像，请自行添加代码
+  	""" 读取并对TFrecords文件解码
+  	    若需要处理非L/RGB/RGBA类型的图像，请自行添加代码
+  	    python Image 读入的图像按照[height,weight,depth]维度排列
+    Return:
+      image: 3D tensor [ image_width, image_height, image_depth]
+    """
     if self.image_mode == 'L':
       image = tf.reshape(image,[self.image_height,self.image_width])
     elif self.image_mode == 'RGB':
@@ -93,11 +94,15 @@ class datareader:
 
   def read_and_decode(self,tfrecord_files):
     """ 读取并对TFrecords文件解码
+    Args:
+      tfrecord_files: list, 一个包含所有TFrecords文件的list
     Return:
       [image，label]: 图像和标签
+      image: 3D tensor [ image_width, image_height, image_depth]
+      label: int32
     """
     with tf.name_scope(self.name):
-      filename_queue = tf.train.string_input_producer(tfrecord_files,shuffle=self.is_shuffle)	#构造文件名队列 
+      filename_queue = tf.train.string_input_producer(tfrecord_files,shuffle=True)	#构造文件名队列 
       reader = tf.TFRecordReader()
       _,serialized_example = reader.read(filename_queue)	#返回的文件名和文件
       features = tf.parse_single_example(
@@ -116,26 +121,25 @@ class datareader:
       return image,label
 
   def pipeline_read(self,dataset_type):
+    """ 流水线读取TFrecord文件
+    Args:
+      dataset_type: string,  该值设为train表示训练集，test表示测试集
+    Returns:
+      image_batch: 4D tensor [batch_size, image_width, image_height, image_depth]
+      label_batch: 2D tensor [batch_size, label] 
     """
-      args:
-        dataset_type: string,  该值设为train表示训练集，test表示测试集
-    """
+    #获取TFrecord文件夹路径下所有TFrecord文件名
     with tf.name_scope(self.name):
       TFreocrd_file_list = []
       for root,dirs,files in os.walk(self.tfrecord_path+'/'+dataset_type+'/'):
         for filetmp in files:
           if os.path.splitext(filetmp)[1]=='.tfrecord':
             TFreocrd_file_list.append(os.path.join(root,filetmp))
-      #若输出单个样例
-      if is_batch == False:
-        image,label=read_and_decode(TFreocrd_file_list)
-        return image,label
       #输出批样例，这里实现了样例队列
-      elif is_batch == True:
-        image,label=read_and_decode(TFreocrd_file_list)
-        image_batch,label_batch = tf.train.shuffle_batch([image,label],batch_size = self.batch_size,
+      image,label=read_and_decode(TFreocrd_file_list)      
+      image_batch,label_batch = tf.train.shuffle_batch([image,label],batch_size = self.batch_size,
           capacity = self.min_queue_examples+3*self.batch_size,min_after_dequeue = self.min_queue_examples)
-        return image_batch,label_batch
+      return image_batch,label_batch
 
 ###
 def check_reader():

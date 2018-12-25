@@ -9,8 +9,8 @@ import tensorflow as tf
     对各种layer进行封装
 函数说明：
     ### Layers
-    1）初始化函数
-      def __init__(self): 
+    1）卷积层函数，实现了Convolution-BatchNorm-ReLU卷积模块，在tf.nn API的基础上实现了两种填充卷积方式。
+      def conv_block( ): 
     2）获取图像信息
       def get_img_info(image_path):10000):
     3）读取TFrecords文件
@@ -18,7 +18,7 @@ import tensorflow as tf
     ### Helpers
     4）创建每一层的权重weights
       def _weights(name, shape, initializer='normal',mean=0.0, stddev=0.02)
-      注意：出于实际工作需要，另外追加了xavier初始化方式，如果需要实现其它初始化方式请在该函数中自行添加
+      注意：出于实际工作需要，另外追加了xavier初始化方式，如果需要实现其它参数初始化方式请在该函数中自行添加
     5）创建每一层的偏置biases
       def _biases(name, shape, constant=0.0):
     6）正则化函数，实现了instance normalization和batch_normal
@@ -27,11 +27,29 @@ import tensorflow as tf
 """
 
 ### Layers
-def conv(x, filter_height, filter_width, num_filters, stride_y, stride_x, name,
-         initializer='xavier',padding='SAME'):
-  """Create a convolution layer.
+def conv_block(input, filter_height, filter_width, num_filters, stride_y, stride_x, is_training=True, norm='instance', activation='relu',
+         initializer='xavier', padding='', reuse=False, name=''):
+  """ A Convolution-BatchNorm-ReLU layer
+  Args:
+    input: 4D tensor [batch_size, image_width, image_height, channels]
+    filter_height:int, height of filter
+    filter_width:int, width of filter
+    num_filters: int, number of filters
+    stride_y：int, stride height
+    stride_x：int, stride width
+    is_training: boolean or BoolTensor
+    norm: 'instance' or 'batch' or None
+    activation: 'relu' or 'tanh'
+    initializer: ''initialization of parameters
+    name: string, e.g. 'c7sk-32'
+    is_training: boolean or BoolTensor
+    reuse: boolean  
+    name: string
+  Returns:
+    4D tensor
   Reference：
-     Thanks to https://github.com/kratzert
+    Thanks to https://github.com/kratzert 
+              https://github.com/junyanz
   """
   input_channels = int(x.get_shape()[-1])
   with tf.variable_scope(name, reuse=reuse):

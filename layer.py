@@ -14,7 +14,7 @@ def conv(x, filter_height, filter_width, num_filters, stride_y, stride_x, name,
   # Create lambda function for the convolution
   convolve = lambda i, k: tf.nn.conv2d(i, k,strides=[1, stride_y, stride_x, 1],padding=padding)
 
-  with tf.variable_scope(name,):
+  with tf.variable_scope(name) as scope:
     # Create tf variables for the weights and biases of the conv layer
     weights = tf.get_variable('weights', shape=[filter_height,
                                                 filter_width,
@@ -58,7 +58,7 @@ def fc(x, num_out, name, relu=True):
       return relu
     else:
       return result
-
+    
 def max_pool(x, filter_height, filter_width, stride_y, stride_x, name,
              padding='SAME'):
   """Create a max pooling layer."""

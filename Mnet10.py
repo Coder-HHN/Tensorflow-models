@@ -44,3 +44,4 @@ class MNET_10:
     
   def netloss():
     loss = tf.reduce_mean((tf.))
+   

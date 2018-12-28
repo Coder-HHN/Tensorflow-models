@@ -39,9 +39,39 @@ class MNET_10:
 
     # 6th Layer: FC (w ReLu)
     self.fc2 = layer.fc(self.dropout1,self.NUM_CLASSES, relu=False,name='fc6')
+    logits = fc2
+    return logits
+  def optimize(self,op_type):
+    def make_optimizer(loss, variables, name='Adam'):
+      """ Adam optimizer with learning rate 0.0002 for the first 100k steps (~100 epochs)
+          and a linearly decaying rate that goes to zero over the next 100k steps
+      """
+      global_step = tf.Variable(0, trainable=False)
+      starter_learning_rate = self.learning_rate
+      end_learning_rate = 0.0
+      start_decay_step = 100000
+      decay_steps = 100000
+      beta1 = self.beta1
+      learning_rate = (
+          tf.where(
+                  tf.greater_equal(global_step, start_decay_step),
+                  tf.train.polynomial_decay(starter_learning_rate, global_step-start_decay_step,
+                                            decay_steps, end_learning_rate,
+                                            power=1.0),
+                  starter_learning_rate
+          )
 
-  def optimize(self):
+      )
+      tf.summary.scalar('learning_rate/{}'.format(name), learning_rate)
+
+      learning_step = (
+          tf.train.AdamOptimizer(learning_rate, beta1=beta1, name=name)
+                  .minimize(loss, global_step=global_step, var_list=variables)
+      )
+      return learning_step
     
   def netloss():
-    loss = tf.reduce_mean((tf.))
+    cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,labels=label_batch)
+    loss = tf.reduce_mean(cross_entropy)
+    return loss
    

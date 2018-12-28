@@ -8,7 +8,7 @@ import utils
 from datareader import datareader
 
 class MNET_10:
-  def __init__(self,):
+  def __init__(self, learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08):
     
   def model(self):
     """创建网络graph"""
@@ -41,35 +41,15 @@ class MNET_10:
     self.fc2 = layer.fc(self.dropout1,self.NUM_CLASSES, relu=False,name='fc6')
     logits = fc2
     return logits
-  def optimize(self,op_type):
-    def make_optimizer(loss, variables, name='Adam'):
-      """ Adam optimizer with learning rate 0.0002 for the first 100k steps (~100 epochs)
-          and a linearly decaying rate that goes to zero over the next 100k steps
-      """
-      global_step = tf.Variable(0, trainable=False)
-      starter_learning_rate = self.learning_rate
-      end_learning_rate = 0.0
-      start_decay_step = 100000
-      decay_steps = 100000
-      beta1 = self.beta1
-      learning_rate = (
-          tf.where(
-                  tf.greater_equal(global_step, start_decay_step),
-                  tf.train.polynomial_decay(starter_learning_rate, global_step-start_decay_step,
-                                            decay_steps, end_learning_rate,
-                                            power=1.0),
-                  starter_learning_rate
-          )
 
-      )
-      tf.summary.scalar('learning_rate/{}'.format(name), learning_rate)
+  def optimize(self, optimize_type, loss):
+    if optimize_type == "Adam":
+      optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon, name='Adam')
+    elif optimize_type == "SGD":
+      optimizer = tf.train.GradientDescentOptimizer(self.learning_rate,name='SGD')
+    train_op = optimizer.minimize(loss)
+    return train_op
 
-      learning_step = (
-          tf.train.AdamOptimizer(learning_rate, beta1=beta1, name=name)
-                  .minimize(loss, global_step=global_step, var_list=variables)
-      )
-      return learning_step
-    
   def netloss():
     cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,labels=label_batch)
     loss = tf.reduce_mean(cross_entropy)

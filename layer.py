@@ -81,8 +81,8 @@ def conv_block(input, filter_height, filter_width, num_filters, stride_y, stride
       output = tf.nn.tanh(normalized)
     return output
 
-def fc(input, num_out, initializer='xavier', relu=True, name=''):
-  """Create a fully connected-Relu layer.
+def fc(input, num_out, initializer='xavier', relu=True, is_training=True, norm='batch',name=''):
+  """Create a fully connected-Norm-Relu layer.
   Args:
     input: 4D tensor [batch_size, image_width, image_height, channels]
     num_out:int, output channels
@@ -97,18 +97,22 @@ def fc(input, num_out, initializer='xavier', relu=True, name=''):
     dim = 1
     for d in shape[1:]:
       dim *= d
-      flattened = tf.reshape(input,[-1,dim])
-      # Create tf variables for the weights and biases
-      weights = _weights('weights', shape=[dim, num_out],initializer=initializer,trainable=True)
-      biases = _biases('biases', shape=[num_out],trainable=True)
-      # Matrix multiply weights and inputs and add bias
-      result = tf.nn.xw_plus_b(flattened, weights, biases)
+
+    flattened = tf.reshape(input,[-1,dim])
+    # Create tf variables for the weights and biases
+    weights = _weights('weights', shape=[dim, num_out],initializer=initializer,trainable=True)
+    biases = _biases('biases', shape=[num_out],trainable=True)
+    # Matrix multiply weights and inputs and add bias
+    result = tf.nn.xw_plus_b(flattened, weights, biases)
+    
+    normalized = normlayer(result, is_training, norm)
+
     if relu:
       # Apply ReLu non linearity
-      relu = tf.nn.relu(result)
+      relu = tf.nn.relu(normalized)
       return relu
     else:
-      return result
+      return normalized
 
 def max_pool(input, filter_height, filter_width, stride_y, stride_x, padding='SAME', name=''):
   """Create a max pooling layer.

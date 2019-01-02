@@ -88,6 +88,7 @@ def fc(input, num_out, initializer='xavier', relu=True, is_training=True, norm='
     num_out:int, output channels
     initializer: initialization of parameters 'normal' or 'xavier' or 'scaling'
     relu: boolean
+    norm: 'instance' or 'batch' or 'lrn' or None
     name: string, e.g. 'fc_1' 
   Returns:
     2D tensor:[batch, num_out]

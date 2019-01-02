@@ -1,36 +1,24 @@
-import tensorflow as tf
-from model import CycleGAN
-from reader import Reader
-from datetime import datetime
 import os
 import logging
-from utils import ImagePool
+import tensorflow as tf
+from Mnet10 import Mnet10
+from datareader import Datareader
 
 FLAGS = tf.flags.FLAGS
 
-tf.flags.DEFINE_integer('batch_size', 1, 'batch size, default: 1')
-tf.flags.DEFINE_integer('image_size', 256, 'image size, default: 256')
-tf.flags.DEFINE_bool('use_lsgan', True,
-                     'use lsgan (mean squared error) or cross entropy loss, default: True')
-tf.flags.DEFINE_string('norm', 'instance',
-                       '[instance, batch] use instance norm or batch norm, default: instance')
-tf.flags.DEFINE_integer('lambda1', 10,
-                        'weight for forward cycle loss (X->Y->X), default: 10')
-tf.flags.DEFINE_integer('lambda2', 10,
-                        'weight for backward cycle loss (Y->X->Y), default: 10')
-tf.flags.DEFINE_float('learning_rate', 2e-4,
-                      'initial learning rate for Adam, default: 0.0002')
-tf.flags.DEFINE_float('beta1', 0.5,
-                      'momentum term of Adam, default: 0.5')
-tf.flags.DEFINE_float('pool_size', 50,
-                      'size of image buffer that stores previously generated images, default: 50')
-tf.flags.DEFINE_integer('ngf', 64,
-                        'number of gen filters in first conv layer, default: 64')
+tf.flags.DEFINE_string('input_train_file', './Data/train', 'Path of Training Data Set Folder')
+tf.flags.DEFINE_string('norm', 'batch', '[instance, batch, lrn, None] use instance norm or batch norm or lrn, default: batch')
+tf.flags.DEFINE_string('initializer', 'xavier', 'Initialization method, normal or xavier or scaling, default: xavier')
 
-tf.flags.DEFINE_string('X', 'data/tfrecords/apple.tfrecords',
-                       'X tfrecords file for training, default: data/tfrecords/apple.tfrecords')
-tf.flags.DEFINE_string('Y', 'data/tfrecords/orange.tfrecords',
-                       'Y tfrecords file for training, default: data/tfrecords/orange.tfrecords')
+tf.flags.DEFINE_integer('batch_size', 64, 'batch size, default: 64')
+tf.flags.DEFINE_integer('image_height', 128, 'height of image, default: 128')
+tf.flags.DEFINE_integer('image_width', 128, 'width of image, default: 128')
+
+tf.flags.DEFINE_bool('is_training', True, 'Training phase or test phase, default: True')
+
+tf.flags.DEFINE_float('learning_rate', 2e-4, 'initial learning rate, default: 0.0002')
+tf.flags.DEFINE_float('beta1', 0.5, 'momentum term of Adam, default: 0.5')
+
 tf.flags.DEFINE_string('load_model', None,
                         'folder of saved model that you wish to continue training (e.g. 20170602-1936), default: None')
 
@@ -48,6 +36,19 @@ def train():
 
   graph = tf.Graph()
   with graph.as_default():
+  	Ment10 = Ment10(
+        input_train_file='',
+        batch_size=64, 
+        image_height=128, 
+        image_width=128,
+        initializer='xavier', 
+        norm='batch', 
+        is_train=True, 
+        learning_rate=0.001, 
+        beta1=0.9, 
+        beta2=0.999, 
+        epsilon=1e-08
+  	)
     cycle_gan = CycleGAN(
         X_train_file=FLAGS.X,
         Y_train_file=FLAGS.Y,

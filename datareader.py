@@ -48,10 +48,10 @@ import utils
                                              |          |------2.tfrecord     
 """
 
-class datareader:
+class Datareader:
 
-  def __init(self,tfrecord_path,image_height=128,image_width=128,image_mode='L',is_batch=False,is_shuffle=True,
-    batch_size=64,min_queue_examples=1024,num_threads=8,name=''):
+  def __init(self, tfrecord_path, image_height=128, image_width=128, image_mode='L', is_batch=False, is_shuffle=True,
+    batch_size=64, min_queue_examples=1024, num_threads=8, name=''):
     """初始化函数
     Args: 
       tfrecord_path: string, TFrecord文件夹路径

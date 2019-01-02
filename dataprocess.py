@@ -49,7 +49,7 @@ from PIL import Image as Img
 
 class dataprocess():
 
-  def __init__(self,dataset_path,classes,image_height=128,image_width=128,is_devide=True,by_class=True,num_per_tf=1000):
+  def __init__(self, dataset_path, classes, image_height=128, image_width=128, is_devide=True, by_class=True, num_per_tf=1000):
     """初始化函数
     Args: 
       dataset_path: string,  原始数据集存储路径,即Data文件夹所在路径
@@ -67,7 +67,6 @@ class dataprocess():
     self.is_devide = is_devide
     self.by_class = by_class
     self.num_per_tf = num_per_tf
-    self.name = name
 
   def encode_image(self,image_path,label):
     """图像编码函数,目的是为了将write_to_TFrecord函数中不同逻辑当中的重复代码进行简化

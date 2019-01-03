@@ -50,8 +50,8 @@ import utils
 
 class Datareader:
 
-  def __init(self, tfrecord_path, image_height=128, image_width=128, image_mode='L', is_batch=False, is_shuffle=True,
-    batch_size=64, min_queue_examples=1024, num_threads=8, name=''):
+  def __init(self, tfrecord_path, image_height=128, image_width=128, image_mode='L', 
+  	batch_size=64, min_queue_examples=1024, num_threads=8, name=''):
     """初始化函数
     Args: 
       tfrecord_path: string, TFrecord文件夹路径
@@ -151,8 +151,8 @@ def check_reader():
   if not os.path.exists('./image'):
     os.makedirs('./image') 
   with tf.Graph().as_default():
-    reader = datareader('./TFrecord',image_height,image_width,image_mode,is_batch=False,is_shuffle=True,
-        batch_size=64,min_queue_examples=1024,num_threads=8,name='')
+    reader = datareader('./TFrecord',image_height ,image_width ,image_mode ,batch_size=64, 
+    	            min_queue_examples=1024,num_threads=8,name='')
     image,label = reader.pipline_read('train')
     with tf.Session() as sess:
       init_op = tf.global_variables_initializer()

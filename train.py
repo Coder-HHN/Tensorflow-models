@@ -6,17 +6,19 @@ from datareader import Datareader
 
 FLAGS = tf.flags.FLAGS
 
-tf.flags.DEFINE_string('input_train_file', './Data/train', 'Path of Training Data Set Folder')
+
+tf.flags.DEFINE_string('input_file', './Data/train', 'Path of tfrecords Data Set Folder')
 tf.flags.DEFINE_string('norm', 'batch', '[instance, batch, lrn, None] use instance norm or batch norm or lrn, default: batch')
 tf.flags.DEFINE_string('initializer', 'xavier', 'Initialization method, normal or xavier or scaling, default: xavier')
 
+tf.flags.DEFINE_integer('max_train_step', 30000, 'max train step, default: 30000')
 tf.flags.DEFINE_integer('batch_size', 64, 'batch size, default: 64')
 tf.flags.DEFINE_integer('image_height', 128, 'height of image, default: 128')
 tf.flags.DEFINE_integer('image_width', 128, 'width of image, default: 128')
 
 tf.flags.DEFINE_bool('is_training', True, 'Training phase or test phase, default: True')
 
-tf.flags.DEFINE_float('learning_rate', 2e-4, 'initial learning rate, default: 0.0002')
+tf.flags.DEFINE_float('learning_rate', 0.001, 'initial learning rate, default: 0.0002')
 tf.flags.DEFINE_float('beta1', 0.5, 'momentum term of Adam, default: 0.5')
 
 tf.flags.DEFINE_string('load_model', None,
@@ -37,40 +39,25 @@ def train():
   graph = tf.Graph()
   with graph.as_default():
   	Ment10 = Ment10(
-        input_train_file='',
-        batch_size=64, 
-        image_height=128, 
-        image_width=128,
-        initializer='xavier', 
-        norm='batch', 
-        is_train=True, 
-        learning_rate=0.001, 
-        beta1=0.9, 
+        input_file=FLAGS.input_file,
+        batch_size=FLAGS.batch_size, 
+        image_height=FLAGS.image_height, 
+        image_width=FLAGS.image_width,
+        initializer=FLAGS.initializer, 
+        norm=FLAGS.norm, 
+        is_train=FLAGS.is_train, 
+        learning_rate=FLAGS.learning_rate, 
+        beta1=FLAGS.beta1, 
         beta2=0.999, 
         epsilon=1e-08
   	)
-    cycle_gan = CycleGAN(
-        X_train_file=FLAGS.X,
-        Y_train_file=FLAGS.Y,
-        batch_size=FLAGS.batch_size,
-        image_size=FLAGS.image_size,
-        use_lsgan=FLAGS.use_lsgan,
-        norm=FLAGS.norm,
-        lambda1=FLAGS.lambda1,
-        lambda2=FLAGS.lambda2,
-        learning_rate=FLAGS.learning_rate,
-        beta1=FLAGS.beta1,
-        ngf=FLAGS.ngf
-    )
-    G_loss, D_Y_loss, F_loss, D_X_loss, fake_y, fake_x = cycle_gan.model()
-    optimizers = cycle_gan.optimize(G_loss, D_Y_loss, F_loss, D_X_loss)
+    loss = Ment10.model()
+    train_op = Ment10.optimize('Adam',loss)
 
-    summary_op = tf.summary.merge_all()
-    train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
     saver = tf.train.Saver()
-
+    
   with tf.Session(graph=graph) as sess:
-    if FLAGS.load_model is not None:
+   """ if FLAGS.load_model is not None:
       checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
       meta_graph_path = checkpoint.model_checkpoint_path + ".meta"
       restore = tf.train.import_meta_graph(meta_graph_path)
@@ -79,42 +66,24 @@ def train():
     else:
       sess.run(tf.global_variables_initializer())
       step = 0
-
+      max_train_step = FLAGS.max_train_step"""
+    sess.run(tf.global_variables_initializer())
+    step = 0
+    max_train_step = FLAGS.max_train_step
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
     try:
-      fake_Y_pool = ImagePool(FLAGS.pool_size)
-      fake_X_pool = ImagePool(FLAGS.pool_size)
-
-      while not coord.should_stop():
-        # get previously generated images
-        fake_y_val, fake_x_val = sess.run([fake_y, fake_x])
-
-        # train
-        _, G_loss_val, D_Y_loss_val, F_loss_val, D_X_loss_val, summary = (
-              sess.run(
-                  [optimizers, G_loss, D_Y_loss, F_loss, D_X_loss, summary_op],
-                  feed_dict={cycle_gan.fake_y: fake_Y_pool.query(fake_y_val),
-                             cycle_gan.fake_x: fake_X_pool.query(fake_x_val)}
-              )
-        )
-
-        train_writer.add_summary(summary, step)
-        train_writer.flush()
-
-        if step % 100 == 0:
-          logging.info('-----------Step %d:-------------' % step)
-          logging.info('  G_loss   : {}'.format(G_loss_val))
-          logging.info('  D_Y_loss : {}'.format(D_Y_loss_val))
-          logging.info('  F_loss   : {}'.format(F_loss_val))
-          logging.info('  D_X_loss : {}'.format(D_X_loss_val))
-
-        if step % 10000 == 0:
-          save_path = saver.save(sess, checkpoints_dir + "/model.ckpt", global_step=step)
-          logging.info("Model saved in file: %s" % save_path)
-
-        step += 1
+      for i in range(max_train_step):	
+        if not coord.should_stop():
+          train_loss_val = sess.run(train_op)
+          if step % 100 == 0:
+            logging.info('-----------Step %d:-------------' % step)
+            logging.info('  train_loss   : {}'.format(train_loss_val))
+          if step % 10000 == 0:
+            save_path = saver.save(sess, checkpoints_dir + "/model.ckpt", global_step=step)
+            logging.info("Model saved in file: %s" % save_path)
+          step += 1
 
     except KeyboardInterrupt:
       logging.info('Interrupted')

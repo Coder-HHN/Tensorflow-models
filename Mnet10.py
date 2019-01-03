@@ -12,11 +12,11 @@ class Mnet10:
   	       initializer='xavier', norm='batch', is_train=True, learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08):
   	"""
     Args:
-      input_train_file: string,  tfrecords file for training
+      input_file: string,  Path of tfrecords Data Set Folder
       batch_size: integer, batch size
       image_height: integer, height of image
       image_width: integer, width of image
-      initializer: initialization of parameters 'normal' or 'xavier' or 'scaling'
+      initializer: Initialization method, 'normal' or 'xavier' or 'scaling'
       norm: 'instance' or 'batch' or 'lrn' or None
       is_training: boolean, is Training phase
       learning_rate: float, initial learning rate for Adam
@@ -24,7 +24,7 @@ class Mnet10:
       beta2: float, momentum2 term of Adam
       epsilon: float, Adam
     """
-      self.input_train_file = input_train_file
+      self.input_file = input_file
       self.batch_size = batch_size
       self.image_height = image_height
       self.image_width = image_width
@@ -35,10 +35,20 @@ class Mnet10:
       self.beta1 = beta1
       self.beta2 = beta2
       self.epsilon = epsilon
+      """
+      #占位符
+      self.image = tf.placeholder(tf.float32,
+        shape=[batch_size, image_size, image_size, 1])
+      self.label = tf.placeholder(tf.float32,
+        shape=[batch_size, image_size, image_size, 1])"""
   def model(self):
+    """设置管道读取"""
+    input_reader = datareader(self.input_file, image_height=self.image_height, image_width=self.image_width,
+         image_mode='L', batch_size=self.batch_size, min_queue_examples=1024, num_threads=8, name='Input')
+    image_batch,label_batch = reader.pipline_read('train')
   	"""创建网络graph"""
     # 1st Layer: Convolution-BatchNorm-ReLU-pool layer
-    self.conv1 = layer.conv_block(self.X, 11, 11, 64, 2, 2, is_training=True, norm='batch', initializer='xavier', name='conv_block1')
+    self.conv1 = layer.conv_block(image_batch, 11, 11, 64, 2, 2, is_training=True, norm='batch', initializer='xavier', name='conv_block1')
     self.pool1 = layer.max_pool(self.norm1, 3, 3, 2, 2, padding='SAME', name='pool1')
 
     # 2nd Layer: Convolution-BatchNorm-ReLU-pool layer
@@ -60,18 +70,19 @@ class Mnet10:
     # 6th Layer: fully connected layer
     self.fc2 = layer.fc(self.pool4, 10, initializer='xavier', relu=False, is_training=True, norm=None, name='fc2')
 
-    return fc2
+    loss = netloss(fc2,label_batch)
+    return loss
 
-  def optimize(self, optimize_type, loss):
-    if optimize_type == "Adam":
+  def optimize(self, optimize_type,loss):
+    if optimize_type == 'Adam':
       optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon, name='Adam')
-    elif optimize_type == "SGD":
+    elif optimize_type == 'SGD':
       optimizer = tf.train.GradientDescentOptimizer(self.learning_rate, name='SGD')
     train_op = optimizer.minimize(loss)
     return train_op
 
-  def netloss(logits):
-    cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,labels=label_batch)
+  def netloss(logits,labels):
+    cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,labels=labels)
     loss = tf.reduce_mean(cross_entropy)
     return loss
    

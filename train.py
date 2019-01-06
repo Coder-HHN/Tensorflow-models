@@ -72,14 +72,15 @@ def train():
     max_train_step = FLAGS.max_train_step
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-
+    
     try:
       for i in range(max_train_step):	
         if not coord.should_stop():
-          train_loss_val = sess.run(train_op)
-          if step % 100 == 0:
+          [train_loss_val,accuracy] = sess.run(train_op)
+          if step % 200 == 0:
             logging.info('-----------Step %d:-------------' % step)
             logging.info('  train_loss   : {}'.format(train_loss_val))
+            logging.info('  train_loss   : {}'.format(accuracy))
           if step % 10000 == 0:
             save_path = saver.save(sess, checkpoints_dir + "/model.ckpt", global_step=step)
             logging.info("Model saved in file: %s" % save_path)

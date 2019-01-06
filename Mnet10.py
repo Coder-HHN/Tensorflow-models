@@ -71,7 +71,9 @@ class Mnet10:
     self.fc2 = layer.fc(self.pool4, 10, initializer='xavier', relu=False, is_training=True, norm=None, name='fc2')
 
     loss = netloss(fc2,label_batch)
-    return loss
+    correct_prediction=tf.equal(tf.argmax(fc2,1), label_batch)
+    accuracy=tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
+    return loss,accuracys
 
   def optimize(self, optimize_type,loss):
     if optimize_type == 'Adam':

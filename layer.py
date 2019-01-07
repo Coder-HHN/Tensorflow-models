@@ -81,7 +81,7 @@ def conv_block(input, filter_height, filter_width, num_filters, stride_y, stride
       output = tf.nn.tanh(normalized)
     return output
 
-def fc(input, num_out, initializer='xavier', relu=True, is_training=True, norm='batch',name=''):
+def fc(input, num_out, is_training=True, norm='batch', initializer='xavier', relu=True,name=''):
   """Create a fully connected-Norm-Relu layer.
   Args:
     input: 4D tensor [batch_size, image_width, image_height, channels]

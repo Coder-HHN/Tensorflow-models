@@ -8,11 +8,11 @@ import utils
 from datareader import datareader
 
 class Mnet10:
-  def __init__(self, input_train_file='', batch_size=64, image_height=128, image_width=128, 
-  	       initializer='xavier', norm='batch', is_train=True, learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08):
+  def __init__(self, input_file='', batch_size=64, image_height=128, image_width=128, 
+  	       initializer='xavier', norm='batch', is_training=True, learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08):
   	"""
     Args:
-      input_file: string,  Path of tfrecords Data Set Folder
+      input_file: string,  Path of tfrecord Folder
       batch_size: integer, batch size
       image_height: integer, height of image
       image_width: integer, width of image
@@ -48,32 +48,32 @@ class Mnet10:
     image_batch,label_batch = reader.pipline_read('train')
   	"""创建网络graph"""
     # 1st Layer: Convolution-BatchNorm-ReLU-pool layer
-    self.conv1 = layer.conv_block(image_batch, 11, 11, 64, 2, 2, is_training=True, norm='batch', initializer='xavier', name='conv_block1')
+    self.conv1 = layer.conv_block(image_batch, 11, 11, 64, 2, 2, is_training=self.is_training, norm=self.norm, initializer=self.initializer, name='conv_block1')
     self.pool1 = layer.max_pool(self.norm1, 3, 3, 2, 2, padding='SAME', name='pool1')
 
     # 2nd Layer: Convolution-BatchNorm-ReLU-pool layer
-    self.conv2 = layer.conv_block(self.pool1, 7, 7, 96, 1, 1, is_training=True, norm='batch', initializer='xavier', name='conv_block2')
+    self.conv2 = layer.conv_block(self.pool1, 7, 7, 96, 1, 1, is_training=self.is_training, norm=self.norm, initializer=self.initializer, name='conv_block2')
     self.pool2 = layer.max_pool(self.norm2, 3, 3, 2, 2, padding='SAME', name='pool2')
 
     # 3nd Layer: Convolution-BatchNorm-ReLU-pool layer
-    self.conv3 = layer.conv_block(self.pool2, 5, 5, 96, 1, 1, is_training=True, norm='batch', initializer='xavier', name='conv_block3')
+    self.conv3 = layer.conv_block(self.pool2, 5, 5, 96, 1, 1, is_training=self.is_training, norm=self.norm, initializer=self.initializer, name='conv_block3')
     self.pool3 = layer.max_pool(self.norm3, 3, 3, 1, 1, padding='SAME', name='pool3')
 
     # 3nd Layer: Convolution-BatchNorm-ReLU-pool layer
-    self.conv4 = layer.conv_block(self.pool3, 3, 3, 96, 1, 1, is_training=True, norm='batch', initializer='xavier', name='conv_block4')
+    self.conv4 = layer.conv_block(self.pool3, 3, 3, 96, 1, 1, is_training=self.is_training, norm=self.norm, initializer=self.initializer, name='conv_block4')
     self.pool4 = layer.max_pool(self.norm4, 3, 3, 1, 1, padding='SAME', name='pool4')
 
     # 5th Layer: ffully connected-BatchNorm-ReLU-> Dropout
-    self.fc1 = layer.fc(self.pool4, 256, initializer='xavier', relu=True, is_training=True, norm='batch', name='fc1')
+    self.fc1 = layer.fc(self.pool4, 256, initializer=self.initializer, relu=True, is_training=self.is_training, norm=self.norm, name='fc1')
     self.dropout1 = layer.dropout(self.fc1, self.keep_prob, name='dropout1')
     
     # 6th Layer: fully connected layer
-    self.fc2 = layer.fc(self.pool4, 10, initializer='xavier', relu=False, is_training=True, norm=None, name='fc2')
+    self.fc2 = layer.fc(self.pool4, 10, initializer=self.initializer, relu=False, is_training=self.is_training, norm=None, name='fc2')
 
     loss = netloss(fc2,label_batch)
     correct_prediction=tf.equal(tf.argmax(fc2,1), label_batch)
     accuracy=tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
-    return loss,accuracys
+    return loss,accuracy
 
   def optimize(self, optimize_type,loss):
     if optimize_type == 'Adam':

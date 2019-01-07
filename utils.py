@@ -1,10 +1,11 @@
 #!/usr/bin/python
 #coding:utf-8
 
+import tensorflow as tf
 from PIL import Image as Img
 
 def get_image_info(self,image_path):
-  """获取图像信息，为read_and_decode函数提供参数，若已知图像格式则不需调用
+  """ 获取图像信息，为read_and_decode函数提供参数，若已知图像格式则不需调用
     PIL中图像mode有9种，1/L/P/RBG/RBGA/CMYK/YCbCr/I/F
     在此处仅介绍常用的三种，其余请自行查询
     L：8位像素灰度图，1通道

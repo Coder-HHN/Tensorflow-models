@@ -45,13 +45,13 @@ def train():
         image_width=FLAGS.image_width,
         initializer=FLAGS.initializer, 
         norm=FLAGS.norm, 
-        is_train=FLAGS.is_train, 
+        is_training=FLAGS.is_train, 
         learning_rate=FLAGS.learning_rate, 
         beta1=FLAGS.beta1, 
         beta2=0.999, 
         epsilon=1e-08
   	)
-    loss = Ment10.model()
+    loss,accuracy = Ment10.model()
     train_op = Ment10.optimize('Adam',loss)
 
     saver = tf.train.Saver()
@@ -76,11 +76,11 @@ def train():
     try:
       for i in range(max_train_step):	
         if not coord.should_stop():
-          [train_loss_val,accuracy] = sess.run(train_op)
+          _,train_loss_val,accuracy_val = sess.run([train_op,loss,accuracy])
           if step % 200 == 0:
             logging.info('-----------Step %d:-------------' % step)
             logging.info('  train_loss   : {}'.format(train_loss_val))
-            logging.info('  train_loss   : {}'.format(accuracy))
+            logging.info('  train_loss   : {}'.format(accuracy_val))
           if step % 10000 == 0:
             save_path = saver.save(sess, checkpoints_dir + "/model.ckpt", global_step=step)
             logging.info("Model saved in file: %s" % save_path)

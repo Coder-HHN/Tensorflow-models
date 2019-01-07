@@ -32,11 +32,11 @@ import utils
       |          |
       |          |------class1
       |          |------class2
-      生成的TFrecord文件将会按照下面介绍的默认样式存储。
+      生成的TFrecord文件将会按照2中介绍的默认样式存储。
     2.在读取TFrecord文件时，默认TFrecoed文件放在TFrecord文件夹下，若TFrecord文件为单文件，则训练集为train.tfrecord,测试集为test.tfrecord
       若TFrecord文件为多个文件，则训练集的tfrecord文件均在train文件夹下,测试集的tfrecord文件均在test文件夹下。
       单文件：                             多文件：
-      Data                                  Data 
+      TFrecord                               TFrecord 
       |                                      |
       |---------train                        |---------train
       |          |                           |          |------1.tfrecord
@@ -59,16 +59,16 @@ class Datareader:
       image_width: int, 图像宽度
       image_mode: string, 图像模式
       batch_size: int, 批样例大小
+      min_queue_examples：int, 预读取min_queue_examples个样例进入队列，然后随机抽取batch_size个组成batch,该值越大样例随机性越高，占用内存越大
       num_threads: int，线程数
-      min_after_dequeue=：int,  预读取min_after_dequeue个样例进入队列，然后随机抽取batch_size个组成batch,该值越大样例随机性越高，占用内存越大
     """
     self.tfrecord_path = tfrecord_path
     self.image_height = image_height
     self.image_width = image_width
     self.image_mode = image_mode
     self.batch_size = batch_size
+    self.min_queue_examples = min_queue_examples
     self.num_threads = num_threads
-    self.min_after_dequeue = min_after_dequeue
     self.name = name
 
   def _preprocess(self, image):
@@ -76,10 +76,10 @@ class Datareader:
   	    若需要处理非L/RGB/RGBA类型的图像，请自行添加代码
   	    python Image 读入的图像按照[height,weight,depth]维度排列
     Return:
-      image: 3D tensor [ image_width, image_height, image_depth]
+      image: 3D tensor [image_width, image_height, image_depth]
     """
     if self.image_mode == 'L':
-      image = tf.reshape(image,[self.image_height,self.image_width])
+      image = tf.reshape(image,[self.image_height,self.image_width,1])
     elif self.image_mode == 'RGB':
       image = tf.reshape(image,[self.image_height,self.image_width,3])
       image = utils.convert2float(image)
@@ -98,7 +98,7 @@ class Datareader:
       tfrecord_files: list, 一个包含所有TFrecords文件的list
     Return:
       [image，label]: 图像和标签
-      image: 3D tensor [ image_width, image_height, image_depth]
+      image: 3D tensor [image_width, image_height, image_depth]
       label: int32
     """
     with tf.name_scope(self.name):
@@ -143,16 +143,15 @@ class Datareader:
 
 ###
 def check_reader():
-  """检验reader读取的图像结果是否正确
+  """ 检验reader读取的图像结果是否正确
   """
   TFrecordPath = './TFrecord'	#设置TFrecord文件夹路径
-  classes = ['airplane','automobile','ship']
   image_height,image_width,image_mode= get_image_info('./Data/train/airplane/airplane5.png')
   if not os.path.exists('./image'):
     os.makedirs('./image') 
   with tf.Graph().as_default():
     reader = datareader('./TFrecord',image_height ,image_width ,image_mode ,batch_size=64, 
-    	            min_queue_examples=1024,num_threads=8,name='')
+    	            min_queue_examples=1024,num_threads=8,name='datareader')
     image,label = reader.pipline_read('train')
     with tf.Session() as sess:
       init_op = tf.global_variables_initializer()
@@ -160,6 +159,7 @@ def check_reader():
       coord = tf.train.Coordinator()
       threads = tf.train.start_queue_runners(coord = coord)
       try:
+      	#执行3次，每次取13张样例，确认批样例随机读取代码的正确性
         for k in range(3):
           if not coord.should_stop():
             example,l = sess.run([image,label])

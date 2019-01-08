@@ -80,23 +80,23 @@ class dataprocess():
     #校验训练数据是否齐全
     for index,name in enumerate(self.classes):
       class_path = self.dataset_path+'/'+dataset_type+'/'+name
-        if not os.path.exists(class_path):
-          print(class_path+'is not exist!')
-          sys.exit()
+      if not os.path.exists(class_path):
+        print(class_path+'is not exist!')
+        sys.exit()
 
     #将训练集或测试集生成为单个TF文件
     if self.is_devide == False:
       Destfile = tf.python_io.TFRecordWriter('TFrecord/'+dataset_type+'/'+dataset_type+'.tfrecord')
       for index,name in enumerate(self.classes):
         class_path = self.dataset_path+'/'+dataset_type+'/'+name
-          for image_name in os.listdir(class_path):
-            image_path = class_path+'/'+image_name   #每张图片的地址
-            example = _encode_image(image_path,index)    #编码图像
-            Destfile.write(example.SerializeToString())	 #序列化为字符串
+        for image_name in os.listdir(class_path):
+          image_path = class_path+'/'+image_name   #每张图片的地址
+          example = self._encode_image(image_path,index)    #编码图像
+          Destfile.write(example.SerializeToString())	 #序列化为字符串
       Destfile.close()
 
     #将训练集或测试集拆分生成为多个TF文件  
-    elif self.is_devide = True:
+    elif self.is_devide == True:
 
       #按照数据类别拆分，每个TF文件存储一类数据
       if self.by_class == True:
@@ -105,7 +105,7 @@ class dataprocess():
           Destfile = tf.python_io.TFRecordWriter('TFrecord/'+dataset_type+'/'+name+'.tfrecord')
           for image_name in os.listdir(class_path):
             image_path = class_path+'/'+image_name
-            example = _encode_image(image_path,index)
+            example = self._encode_image(image_path,index)
             Destfile.write(example.SerializeToString())
           Destfile.close()
 
@@ -114,13 +114,13 @@ class dataprocess():
         icount_start = 0
         icount_end = icount_start+self.num_per_tf
         Destfile = tf.python_io.TFRecordWriter('TFrecord/'+dataset_type+'/'+dataset_type+'_'+str(icount_start)+
-          '_'+str(icount_end)+'.tfrecord')
+          '_'+str(icount_end-1)+'.tfrecord')
         for index,name in enumerate(self.classes):
           class_path = self.dataset_path+'/'+dataset_type+'/'+name
           length = len(os.listdir(class_path))
           for image_name in os.listdir(class_path):
             image_path = class_path+'/'+image_name
-            example = _encode_image(image_path,index)
+            example = self._encode_image(image_path,index)
             Destfile.write(example.SerializeToString())
             length = length-1
             icount_start += 1
@@ -131,16 +131,16 @@ class dataprocess():
                 icount_end = icount_start+self.num_per_tf
                 Destfile.close()
                 Destfile = tf.python_io.TFRecordWriter('TFrecord/'+dataset_type+'/'+dataset_type+'_'+str(icount_start)+
-                  '_'+str(icount_end)+'.tfrecord')              
+                  '_'+str(icount_end-1)+'.tfrecord')              
 
   ### Helpers
-  def _int64_feature(value):
+  def _int64_feature(self,value):
     return tf.train.Feature(int64_list = tf.train.Int64List(value=[value]))
 
-  def _bytes_feature(value):
+  def _bytes_feature(self,value):
     return tf.train.Feature(bytes_list = tf.train.BytesList(value=[value]))
 
-  def _float_feature(value):
+  def _float_feature(self,value):
     return tf.train.Feature(float_list = tf.train.FloatList(value=[value]))
 
   def _encode_image(self,image_path,label):
@@ -155,10 +155,10 @@ class dataprocess():
     example = tf.train.Example(    #对label和image数据进行封装
       features = tf.train.Features(
         feature = {
-          'height':_int64_feature(image.size[0]),
-          'widith':_int64_feature(image.size[1]),
-          'label': _int64_feature(label),
-          'image_raw':_bytes_feature(image_raw)
+          'height':self._int64_feature(image.size[0]),
+          'widith':self._int64_feature(image.size[1]),
+          'label': self._int64_feature(label),
+          'image_raw':self._bytes_feature(image_raw)
         }
       )
     )
@@ -171,7 +171,7 @@ def test_writer():
   classes = ['airplane','automobile','ship']
   image_width = 128
   image_height = 128
-  writer = dataprocess(datapath,classes,image_height,image_width)
+  writer = dataprocess(datapath,classes,image_height,image_width,is_devide=True, by_class=True, num_per_tf=5)
   writer.write_to_TFrecord('train')
   writer.write_to_TFrecord('test')
 if __name__ == '__main__':

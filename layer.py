@@ -65,7 +65,7 @@ def conv_block(input, filter_height, filter_width, num_filters, stride_y, stride
 
     #卷积前填充，默认为CONSTANT全0填充
     if not padding == None:
-      padded = tf.pad(input, padding, 'CONSTANT'，constant_values=0)
+      padded = tf.pad(input, padding, 'CONSTANT',constant_values=0)
     else:
       padded = input
     
@@ -173,9 +173,9 @@ def _weights(name, shape, initializer='xavier',trainable=True,mean=0.0, stddev=0
     var = tf.get_variable(name, shape,
       initializer=tf.random_normal_initializer(mean=mean, stddev=stddev, dtype=tf.float32),trainable=trainable)
   #在contrib源码中，xavier的底层也是调用variance_scaling_initializer
-  elif initiallizer =='xavier':
+  elif initializer =='xavier':
   	var = tf.get_variable(name, shape,initializer=tf.contrib.layers.xavier_initializer(),trainable=trainable)
-  elif initiallizer =='scaling':
+  elif initializer =='scaling':
     var = tf.get_variable(name, shape,initializer=tf.contrib.layers.variance_scaling_initializer(),trainable=trainable)
   return var
 
@@ -210,7 +210,7 @@ def _instance_norm(input):
 
 def _lr_normal(input, radius=2, alpha=2e-05, beta=0.75, bias=1.0):
   """Create a local response normalization layer."""
-  with tf.variable_scope("local_response_norm") 
+  with tf.variable_scope("local_response_norm"):
     return tf.nn.local_response_normalization(input, depth_radius=radius,
                                               alpha=alpha, beta=beta,
                                               bias=bias)

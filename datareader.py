@@ -83,12 +83,13 @@ class datareader:
     """
     if self.image_mode == 'L':
       image = tf.reshape(image,[self.image_height,self.image_width,1])
+      image = utils.convert2float(image)
     elif self.image_mode == 'RGB':
       image = tf.reshape(image,[self.image_height,self.image_width,3])
-      #image = utils.convert2float(image)
+      image = utils.convert2float(image)
     elif self.image_mode == 'RGBA':
       image = tf.reshape(image,[self.image_height,self.image_width,4])
-      #image = utils.convert2float(image)
+      image = utils.convert2float(image)
       #image = tf.cast(image,tf.float32)*(1./255)-0.5
     else:
       print('The image mode must be L/RGB/RGBA!')
@@ -102,7 +103,7 @@ class datareader:
     Return:
       [image，label]: 图像和标签
       image: 3D tensor [image_width, image_height, image_depth]
-      label: int32
+      label: int64
     """
     with tf.name_scope(self.name):
       filename_queue = tf.train.string_input_producer(tfrecord_files,shuffle=True)	#构造文件名队列 
@@ -119,7 +120,7 @@ class datareader:
       )
     #将字符串转为uint8张量,这里仅读取image_raw和label，有需要读取图像尺寸信息的请自行修改
       image = tf.decode_raw(features['image_raw'],tf.uint8)	
-      label = tf.cast(features['label'],tf.int32)
+      label = tf.cast(features['label'],tf.int64)
       image = self._preprocess(image)
       return image,label
 
@@ -149,14 +150,16 @@ def check_reader():
   """ 检验reader读取的图像结果是否正确
   """
   TFrecordPath = './TFrecord'	#设置TFrecord文件夹路径
-  image_height,image_width,image_mode= utils.get_image_info('./Data/train/airplane/airplane5.png')
+  #image_height,image_width,image_mode= utils.get_image_info('./Data/train/airplane/airplane5.png')
+  image_mode = 'L'
   if not os.path.exists('./image'):
     os.makedirs('./image') 
   with tf.Graph().as_default():
     reader = datareader('./TFrecord',128, 128, image_mode, batch_size=64, 
-    	            min_queue_examples=1024, num_threads=8, name='datareader')
+    	            min_queue_examples=1024, num_threads=1024, name='datareader')
 
     image,label = reader.pipeline_read('train')
+    image = utils.batch_convert2int(image)
     with tf.Session() as sess:
       init_op = tf.global_variables_initializer()
       sess.run(init_op)
@@ -164,13 +167,13 @@ def check_reader():
       threads = tf.train.start_queue_runners(coord = coord)
       try:
       	#执行3次，每次取13张样例，确认批样例随机读取代码的正确性
-        for k in range(3):
+        for k in range(1):
           if not coord.should_stop():
             example,l = sess.run([image,label])
-            for i in range(10):
+            print(example,l)
+            for i in range(3):
               img = Img.fromarray(example[i],image_mode)
               img.save('image/'+str(k)+'_'+str(i)+'_Label_'+str(l[i])+'.jpg')
-              #print(example,l)
       except KeyboardInterrupt:
         print('Interrupted')
         coord.request_stop()

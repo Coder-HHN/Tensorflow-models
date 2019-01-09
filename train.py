@@ -1,13 +1,14 @@
 import os
 import logging
 import tensorflow as tf
+from datetime import datetime
 from Mnet10 import Mnet10
-from datareader import Datareader
+from datareader import datareader
 
 FLAGS = tf.flags.FLAGS
 
 
-tf.flags.DEFINE_string('input_file', './Data/train', 'Path of tfrecords Data Set Folder')
+tf.flags.DEFINE_string('input_file', './TFrecord', 'Path of tfrecords Data Set Folder')
 tf.flags.DEFINE_string('norm', 'batch', '[instance, batch, lrn, None] use instance norm or batch norm or lrn, default: batch')
 tf.flags.DEFINE_string('initializer', 'xavier', 'Initialization method, normal or xavier or scaling, default: xavier')
 
@@ -19,6 +20,7 @@ tf.flags.DEFINE_integer('image_width', 128, 'width of image, default: 128')
 tf.flags.DEFINE_bool('is_training', True, 'Training phase or test phase, default: True')
 
 tf.flags.DEFINE_float('learning_rate', 0.001, 'initial learning rate, default: 0.0002')
+tf.flags.DEFINE_float('keep_prob', 0.8, 'the probability that each element is kept')
 tf.flags.DEFINE_float('beta1', 0.5, 'momentum term of Adam, default: 0.5')
 
 tf.flags.DEFINE_string('load_model', None,
@@ -38,26 +40,27 @@ def train():
 
   graph = tf.Graph()
   with graph.as_default():
-  	Ment10 = Ment10(
+    mnet10 = Mnet10(
         input_file=FLAGS.input_file,
         batch_size=FLAGS.batch_size, 
         image_height=FLAGS.image_height, 
         image_width=FLAGS.image_width,
         initializer=FLAGS.initializer, 
         norm=FLAGS.norm, 
-        is_training=FLAGS.is_train, 
+        is_training=FLAGS.is_training, 
         learning_rate=FLAGS.learning_rate, 
+        keep_prob = FLAGS.keep_prob,
         beta1=FLAGS.beta1, 
         beta2=0.999, 
         epsilon=1e-08
-  	)
-    loss,accuracy = Ment10.model()
-    train_op = Ment10.optimize('Adam',loss)
+    )
+    loss,accuracy = mnet10.model()
+    train_op = mnet10.optimize('Adam',loss)
 
     saver = tf.train.Saver()
     
   with tf.Session(graph=graph) as sess:
-   """ if FLAGS.load_model is not None:
+    """ if FLAGS.load_model is not None:
       checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
       meta_graph_path = checkpoint.model_checkpoint_path + ".meta"
       restore = tf.train.import_meta_graph(meta_graph_path)
@@ -66,7 +69,8 @@ def train():
     else:
       sess.run(tf.global_variables_initializer())
       step = 0
-      max_train_step = FLAGS.max_train_step"""
+      max_train_step = FLAGS.max_train_step
+    """
     sess.run(tf.global_variables_initializer())
     step = 0
     max_train_step = FLAGS.max_train_step
@@ -80,7 +84,7 @@ def train():
           if step % 200 == 0:
             logging.info('-----------Step %d:-------------' % step)
             logging.info('  train_loss   : {}'.format(train_loss_val))
-            logging.info('  train_loss   : {}'.format(accuracy_val))
+            logging.info('  train_accuracy   : {}'.format(accuracy_val))
           if step % 10000 == 0:
             save_path = saver.save(sess, checkpoints_dir + "/model.ckpt", global_step=step)
             logging.info("Model saved in file: %s" % save_path)

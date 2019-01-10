@@ -3,7 +3,9 @@
 
 Reference：
     Thanks to https://github.com/kratzert
+    
               https://github.com/vanhuyz/CycleGAN-TensorFlow 
+              
 对两位的工作表示由衷感谢，尤其是vanhuyz的CycleGAN代码，模块划分清晰，架构合理，强烈推荐Tensorflow新手细读！
 
 从caffe转tensorflow，一步步从零开始学习tensorflow，同时也是在将之前的一系列工作逐步开源。

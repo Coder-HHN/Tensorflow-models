@@ -1,3 +1,6 @@
+#!/usr/bin/python
+#coding:utf-8
+
 import os
 import logging
 import tensorflow as tf
@@ -12,7 +15,7 @@ tf.flags.DEFINE_string('input_file', './TFrecord', 'Path of tfrecords Data Set F
 tf.flags.DEFINE_string('norm', 'batch', '[instance, batch, lrn, None] use instance norm or batch norm or lrn, default: batch')
 tf.flags.DEFINE_string('initializer', 'xavier', 'Initialization method, normal or xavier or scaling, default: xavier')
 
-tf.flags.DEFINE_integer('max_train_step', 30000, 'max train step, default: 30000')
+tf.flags.DEFINE_integer('max_train_step', 10000, 'max train step, default: 30000')
 tf.flags.DEFINE_integer('batch_size', 64, 'batch size, default: 64')
 tf.flags.DEFINE_integer('image_height', 128, 'height of image, default: 128')
 tf.flags.DEFINE_integer('image_width', 128, 'width of image, default: 128')
@@ -55,6 +58,7 @@ def train():
         epsilon=1e-08
     )
     loss,accuracy = mnet10.model()
+    #loss,accuracy,fc,label_y,label_origin = mnet10.model()
     train_op = mnet10.optimize('Adam',loss)
 
     saver = tf.train.Saver()
@@ -76,15 +80,36 @@ def train():
     max_train_step = FLAGS.max_train_step
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-    
+    #设置logging同时输出到控制台和log文件
+    DATE_FORMAT = "%m%d%Y %H:%M:%S"
+    LOG_FORMAT = "%(asctime)s - %(levelname)s : -%(message)s"
+    formatter = logging.Formatter(LOG_FORMAT,datefmt = DATE_FORMAT)
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    file_handler = logging.FileHandler('train.log',mode='w')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(formatter)
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.INFO)
+    stream_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
     try:
       for i in range(max_train_step):	
         if not coord.should_stop():
           _,train_loss_val,accuracy_val = sess.run([train_op,loss,accuracy])
+          #_,train_loss_val,accuracy_val,fc_val,label_y_val,label_origin_val = sess.run([train_op,loss,accuracy,fc,label_y,label_origin])
           if step % 200 == 0:
             logging.info('-----------Step %d:-------------' % step)
             logging.info('  train_loss   : {}'.format(train_loss_val))
-            logging.info('  train_accuracy   : {}'.format(accuracy_val))
+            logging.info('  train_accuracy   : {}%'.format(accuracy_val*100))
+            #logging.info('  fc   : {}'.format(fc_val))
+            #logging.info('  label_y   : {}'.format(label_y_val))
+            #logging.info('  label_origin   : {}'.format(label_origin_val))
           if step % 10000 == 0:
             save_path = saver.save(sess, checkpoints_dir + "/model.ckpt", global_step=step)
             logging.info("Model saved in file: %s" % save_path)
@@ -106,5 +131,5 @@ def main(unused_argv):
   train()
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO)
+  #logging.basicConfig(level=logging.INFO)
   tf.app.run()

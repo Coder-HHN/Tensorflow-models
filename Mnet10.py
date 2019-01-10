@@ -76,7 +76,7 @@ class Mnet10:
     correct_prediction=tf.equal(tf.argmax(self.fc2,1), label_batch)
     accuracy=tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
     return loss,accuracy
-
+    #return loss,accuracy,self.fc2,tf.argmax(self.fc2,1),label_batch
   def optimize(self, optimize_type,loss):
     if optimize_type == 'Adam':
       optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon, name='Adam')

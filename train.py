@@ -5,7 +5,7 @@ import os
 import logging
 import tensorflow as tf
 from datetime import datetime
-from Mnet10 import Mnet10
+from model import Mnet10
 from datareader import datareader
 
 FLAGS = tf.flags.FLAGS
@@ -80,6 +80,7 @@ def train():
     max_train_step = FLAGS.max_train_step
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+    
     #设置logging同时输出到控制台和log文件
     DATE_FORMAT = "%m%d%Y %H:%M:%S"
     LOG_FORMAT = "%(asctime)s - %(levelname)s : -%(message)s"

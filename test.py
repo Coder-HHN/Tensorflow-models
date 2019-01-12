@@ -19,6 +19,24 @@ tf.flags.DEFINE_integer('image_width', 128, 'width of image, default: 128')
 tf.flags.DEFINE_integer('batch_size', '64', 'batch size, default: 64')
 tf.flags.DEFINE_integer('test_iter', '10000', 'test_iter = size_of_test_data/batch_size , default: 10000')
 
+def ckpt_test(model=None,input_reader=None):
+  """ 对已有模型执行测试操作，返回模型测试精度
+  Args:
+    model: string, ckpt模型文件名,不带后缀，(eg: model.ckpt-10000)
+    input_reader: datareader, Tfrecord数据读取类,
+  Return: 
+    accuracy: float, 准确率
+  """
+  
+  # 载入网络图结构，保存在.meta文件中 
+  saver = tf.train.import_meta_graph(model+'.meta')
+  with tf.Session() as sess:
+    # 载入参数文件，restore会依据model_checkpoint_path自行寻找
+    saver.restore(sess,model)
+    global_step=model.split('/')[-1].split('-')[-1]
+    # 读取测试集数据
+    image_batch,label_batch = input_reader.pipeline_read('train')
+
 def ckpt_test(model=None,input=None,is_single_model=False,image_batch=None,label_batch=None):
   """ 对已有模型执行测试操作，返回模型测试精度，输入模型保存文件为*.ckpt
   Args:

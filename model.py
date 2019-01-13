@@ -8,26 +8,18 @@ import utils
 from datareader import datareader
 
 class Mnet10:
-  def __init__(self, input_file='', batch_size=64, image_height=128, image_width=128, 
-  	       initializer='xavier', norm='batch', is_training=True, keep_prob = 0.8,learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08):
+  def __init__(self, initializer='xavier', norm='batch', is_training=True, keep_prob = 0.8,learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08):
     """
     Args:
-      input_file: string,  Path of tfrecord Folder
-      batch_size: integer, batch size
-      image_height: integer, height of image
-      image_width: integer, width of image
       initializer: Initialization method, 'normal' or 'xavier' or 'scaling'
       norm: 'instance' or 'batch' or 'lrn' or None
       is_training: boolean, is Training phase
       learning_rate: float, initial learning rate for Adam
+      keep_prob:float, the probability that each element is kept
       beta1: float, momentum term of Adam
       beta2: float, momentum2 term of Adam
       epsilon: float, Adam
     """
-    self.input_file = input_file
-    self.batch_size = batch_size
-    self.image_height = image_height
-    self.image_width = image_width
     self.initializer = initializer
     self.norm = norm 
     self.is_training = is_training
@@ -43,11 +35,7 @@ class Mnet10:
     self.label = tf.placeholder(tf.float32,
     shape=[batch_size, image_size, image_size, 1])
     """
-  def model(self):
-    """设置管道读取"""
-    input_reader = datareader(self.input_file, image_height=self.image_height, image_width=self.image_width,
-         image_mode='L', batch_size=self.batch_size, min_queue_examples=1024, num_threads=8, name='Input')
-    image_batch,label_batch = input_reader.pipeline_read('train')
+  def model(self, image_batch=None,label_batch=None):
     """创建网络graph"""
     # 1st Layer: Convolution-BatchNorm-ReLU-pool layer
     self.conv1 = layer.conv_block(image_batch, 11, 11, 64, 2, 2, is_training=self.is_training, norm=self.norm, initializer=self.initializer, name='conv_block1')

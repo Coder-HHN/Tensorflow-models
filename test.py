@@ -10,85 +10,89 @@ from datareader import datareader
 FLAGS = tf.flags.FLAGS
 
 
-tf.flags.DEFINE_string('model', '', 'model path (.pb) or (.ckpt)')
-tf.flags.DEFINE_string('input_img', None, 'input image path (.jpg)')
+tf.flags.DEFINE_string('model', '/home/dell/Tensorflow/test/checkpoints/20190113-1948/', 'model path (.pb) or (.ckpt)')
 tf.flags.DEFINE_string('input_file', './TFrecord', 'Path of tfrecords Data Set Folder')
 
 tf.flags.DEFINE_integer('image_height', 128, 'height of image, default: 128')
 tf.flags.DEFINE_integer('image_width', 128, 'width of image, default: 128')
 tf.flags.DEFINE_integer('batch_size', '64', 'batch size, default: 64')
-tf.flags.DEFINE_integer('test_iter', '10000', 'test_iter = size_of_test_data/batch_size , default: 10000')
+tf.flags.DEFINE_integer('test_iter', '100', 'test_iter = size_of_test_data/batch_size , default: 100')
 
-def ckpt_test(model=None,input=None,is_single_model=False,image_batch=None,label_batch=None):
-  """ 对已有模型执行测试操作，返回模型测试精度，输入模型保存文件为*.ckpt
-  Args:
-    model: string, 模型文件路径
-      注意：若要对训练中保存的所有模型进行测试，请将is_single_model设置为False，同时，此时应输入保存模型的文件夹的路径(eg:./ckpt/)
-      若要指定测试某一个模型，请将is_single_model设置为True，此时应输入全路径（eg:/ckpt/your_model_name.ckpt）
-      当is_single_model=True且 model=None时，默认仅测试文件夹中最新保存的模型
-    input: sting, 输入数据,TFrecord文件夹路径
-    is_single_model：对所有保存模型进行测试(False)，或对某一个模型进行测试(True)
-  Return: 
-    accuracy: float, 准确率
-  """
-  if is_single_model = False:
-    checkpoint = tf.train.get_checkpoint_state(model)
-    logging.info('-----------Test Begin -------------' )
-    logging.info('Models: %s' % checkpoint)
-    if checkpoint and checkpoint.all_model_checkpoint_paths:
-      for model_path in checkpoint.all_model_checkpoint_paths:
-        # 载入图结构，保存在.meta文件中        	
-        saver = tf.train.import_meta_graph(checkpoint.model_checkpoint_path +'.meta')
-          # 载入参数文件，restore会依据model_checkpoint_path自行寻找
-          saver.restore(sess,model_path)
-          global_step=model_path.split('/')[-1].split('-')[-1]
+def ckpt_test(model_path):
+  graph = tf.Graph()
+  with graph.as_default():
+    mnet10 = Mnet10()
+    #设置管道读取
+    input_reader = datareader(FLAGS.input_file, image_height=FLAGS.image_height, image_width=FLAGS.image_width,
+         image_mode='L', batch_size=FLAGS.batch_size, min_queue_examples=1024, num_threads=8, name='Input')
+    #读取训练集数据
+    image_batch,label_batch = input_reader.pipeline_read('test')
+    
+    loss,accuracy = mnet10.model(image_batch=image_batch,label_batch=label_batch)
+    saver = tf.train.Saver()
+    
+  with tf.Session(graph=graph) as sess:
+    #checkpoint = tf.train.get_checkpoint_state(FLAGS.model)
+    meta_graph_path = model_path + ".meta"
+    restore = tf.train.import_meta_graph(meta_graph_path)
+    restore.restore(sess, model_path)
 
-    else
-      print('The Model Save Folder is empty!')
-      sys.exit()
-  elif is_single_model = True:  
-    if model == None
-  
-    else
+    sess.run(tf.global_variables_initializer())
+    test_iter = 0
+    max_test_iter = FLAGS.test_iter
+    test_accuracy_total = 0
 
+    coord = tf.train.Coordinator()
+    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+    
+    #设置logging同时输出到控制台和log文件
+    DATE_FORMAT = "%m%d%Y %H:%M:%S"
+    LOG_FORMAT = "%(asctime)s - %(levelname)s : -%(message)s"
+    formatter = logging.Formatter(LOG_FORMAT,datefmt = DATE_FORMAT)
 
-      checkpoint = tf.train.get_checkpoint_state(model)
-      meta_graph_path = checkpoint.model_checkpoint_path + ".meta"
-      restore = tf.train.import_meta_graph(meta_graph_path)
-      restore.restore(sess, tf.train.latest_checkpoint(model))
-      step = int(meta_graph_path.split("-")[2].split(".")[0])
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
 
-def pb_test():
+    file_handler = logging.FileHandler('test.log',mode='w')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(formatter)
 
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.INFO)
+    stream_handler.setFormatter(formatter)
 
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+
+    try:
+      for i in range(max_test_iter): 
+        if not coord.should_stop():
+          test_loss_val,accuracy_val = sess.run([loss,accuracy])
+          #test_loss_val,accuracy_val,fc_val,label_y_val,label_origin_val = sess.run([train_op,loss,accuracy,fc,label_y,label_origin])
+          if test_iter % 200 == 0:
+            logging.info('-----------Batch: %d:-------------' % test_iter)
+            logging.info('  test_loss   : {}'.format(test_loss_val))
+            logging.info('  test_accuracy   : {}%'.format(accuracy_val*100))
+            #logging.info('  fc   : {}'.format(fc_val))
+            #logging.info('  label_y   : {}'.format(label_y_val))
+            #logging.info('  label_origin   : {}'.format(label_origin_val))
+          test_accuracy_total = test_accuracy_total+accuracy_val
+          test_iter += 1
+
+    except KeyboardInterrupt:
+      logging.info('Interrupted')
+      coord.request_stop()
+    except Exception as e:
+      coord.request_stop(e)
+    finally:
+      logging.info('-----------Test Finish-------------')
+      logging.info('  test_accuracy_average   : {}'.format(test_accuracy_total/max_test_iter))
+      coord.request_stop()
+      coord.join(threads)
 def test():
-  if FLAGS.input_img is not None:
-
+  ckpt_test()
 
 def main(unused_argv):
-  #读入测试集数据
-  input_reader = datareader(FLAGS.input_file, image_height=FLAGS.image_height, image_width=FLAGS.image_width,
-         image_mode='L', batch_size=FLAGS.batch_size, min_queue_examples=1024, num_threads=8, name='Input')
-  image_batch,label_batch = input_reader.pipeline_read('test')
-
-  #设置logging同时输出到控制台和log文件
-  DATE_FORMAT = "%m%d%Y %H:%M:%S"
-  LOG_FORMAT = "%(asctime)s - %(levelname)s : -%(message)s"
-  formatter = logging.Formatter(LOG_FORMAT,datefmt = DATE_FORMAT)
-
-  logger = logging.getLogger()
-  logger.setLevel(logging.INFO)
-
-  file_handler = logging.FileHandler('test.log',mode='w')
-  file_handler.setLevel(logging.INFO)
-  file_handler.setFormatter(formatter)
-
-  stream_handler = logging.StreamHandler()
-  stream_handler.setLevel(logging.INFO)
-  stream_handler.setFormatter(formatter)
-
-  logger.addHandler(file_handler)
-  logger.addHandler(stream_handler)
   test()
 
 if __name__ == '__main__':

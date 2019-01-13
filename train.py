@@ -44,6 +44,10 @@ def train():
   graph = tf.Graph()
   with graph.as_default():
     mnet10 = Mnet10(
+        input_file=FLAGS.input_file,
+        batch_size=FLAGS.batch_size, 
+        image_height=FLAGS.image_height, 
+        image_width=FLAGS.image_width,
         initializer=FLAGS.initializer, 
         norm=FLAGS.norm, 
         is_training=FLAGS.is_training, 
@@ -53,14 +57,7 @@ def train():
         beta2=0.999, 
         epsilon=1e-08
     )
-
-    #设置管道读取
-    input_reader = datareader(FLAGS.input_file, image_height=FLAGS.image_height, image_width=FLAGS.image_width,
-         image_mode='L', batch_size=FLAGS.batch_size, min_queue_examples=1024, num_threads=8, name='Input')
-    #读取训练集数据
-    image_batch,label_batch = input_reader.pipeline_read('train')
-    
-    loss,accuracy = mnet10.model(image_batch=image_batch,label_batch=label_batch)
+    loss,accuracy = mnet10.model()
     #loss,accuracy,fc,label_y,label_origin = mnet10.model()
     train_op = mnet10.optimize('Adam',loss)
 

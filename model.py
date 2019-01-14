@@ -35,7 +35,7 @@ class Mnet10:
     self.label = tf.placeholder(tf.float32,
     shape=[batch_size, image_size, image_size, 1])
     """
-  def model(self, image_batch=None,label_batch=None):
+  def model(self,image_batch=None,label_batch=None):
     """创建网络graph"""
     # 1st Layer: Convolution-BatchNorm-ReLU-pool layer
     self.conv1 = layer.conv_block(image_batch, 11, 11, 64, 2, 2, is_training=self.is_training, norm=self.norm, initializer=self.initializer, name='conv_block1')

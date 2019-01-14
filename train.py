@@ -14,8 +14,9 @@ FLAGS = tf.flags.FLAGS
 tf.flags.DEFINE_string('input_file', './TFrecord', 'Path of tfrecords Data Set Folder')
 tf.flags.DEFINE_string('norm', 'batch', '[instance, batch, lrn, None] use instance norm or batch norm or lrn, default: batch')
 tf.flags.DEFINE_string('initializer', 'xavier', 'Initialization method, normal or xavier or scaling, default: xavier')
+tf.flags.DEFINE_string('image_mode', 'L', 'mode of image: L or RGB or RGBA')
 
-tf.flags.DEFINE_integer('max_train_step', 10000, 'max train step, default: 30000')
+tf.flags.DEFINE_integer('max_train_step', 100000, 'max train step, default: 30000')
 tf.flags.DEFINE_integer('batch_size', 64, 'batch size, default: 64')
 tf.flags.DEFINE_integer('image_height', 128, 'height of image, default: 128')
 tf.flags.DEFINE_integer('image_width', 128, 'width of image, default: 128')
@@ -56,28 +57,17 @@ def train():
 
     #设置管道读取
     input_reader = datareader(FLAGS.input_file, image_height=FLAGS.image_height, image_width=FLAGS.image_width,
-         image_mode='L', batch_size=FLAGS.batch_size, min_queue_examples=1024, num_threads=8, name='Input')
+         image_mode=FLAGS.image_mode, batch_size=FLAGS.batch_size, min_queue_examples=1024, num_threads=8, name='Input')
     #读取训练集数据
     image_batch,label_batch = input_reader.pipeline_read('train')
     
     loss,accuracy = mnet10.model(image_batch=image_batch,label_batch=label_batch)
-    #loss,accuracy,fc,label_y,label_origin = mnet10.model()
-    train_op = mnet10.optimize('Adam',loss)
+    #loss,accuracy,fc,label_y,label_origin = mnet10.model(image_batch=image_batch,label_batch=label_batch)
+    train_op = mnet10.optimize('SGD',loss)
 
     saver = tf.train.Saver()
     
   with tf.Session(graph=graph) as sess:
-    """ if FLAGS.load_model is not None:
-      checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
-      meta_graph_path = checkpoint.model_checkpoint_path + ".meta"
-      restore = tf.train.import_meta_graph(meta_graph_path)
-      restore.restore(sess, tf.train.latest_checkpoint(checkpoints_dir))
-      step = int(meta_graph_path.split("-")[2].split(".")[0])
-    else:
-      sess.run(tf.global_variables_initializer())
-      step = 0
-      max_train_step = FLAGS.max_train_step
-    """
     sess.run(tf.global_variables_initializer())
     step = 0
     max_train_step = FLAGS.max_train_step

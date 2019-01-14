@@ -11,24 +11,20 @@ FLAGS = tf.flags.FLAGS
 
 
 tf.flags.DEFINE_string('model', '/home/dell/Tensorflow/test/checkpoints/20190113-2155', 'model path (.pb) or (.ckpt)')
-tf.flags.DEFINE_string('input_file', './TFrecord', 'Path of tfrecords Data Set Folder')
-tf.flags.DEFINE_string('image_mode', 'L', 'mode of image: L or RGB or RGBA')
+tf.flags.DEFINE_string('input_image_folder', './image', 'Path of input images')
 
-tf.flags.DEFINE_integer('image_height', 128, 'height of image, default: 128')
 tf.flags.DEFINE_integer('image_width', 128, 'width of image, default: 128')
-tf.flags.DEFINE_integer('batch_size', 64, 'batch size, default: 64')
-tf.flags.DEFINE_integer('test_iter', 100, 'test_iter = size_of_test_data/batch_size , default: 100')
+tf.flags.DEFINE_integer('image_height', 128, 'height of image, default: 128')
+tf.flags.DEFINE_integer('image_channals', 1, 'channal of image, default: 1')
+tf.flags.DEFINE_integer('image_number', 100, 'the number of input images, default: 100')
 
-def ckpt_test(model_path):
+def ckpt_prediction(model_path):
   graph = tf.Graph()
   with graph.as_default():
     mnet10 = Mnet10(is_training=False, keep_prob = 1)
-    #设置管道读取
-    input_reader = datareader(FLAGS.input_file, image_height=FLAGS.image_height, image_width=FLAGS.image_width,
-         image_mode=FLAGS.image_mode, batch_size=FLAGS.batch_size, min_queue_examples=1024, num_threads=8, name='Input')
-    #读取训练集数据
-    image_batch,label_batch = input_reader.pipeline_read('test')
     
+    image=tf.placeholder(tf.float32,[1,FLAGS.image_width, FLAGS.image_height, FLAGS.image_channals])
+
     loss,accuracy = mnet10.model(image_batch=image_batch,label_batch=label_batch)
     #loss,accuracy,fc,label_y,label_origin = mnet10.model(image_batch=image_batch,label_batch=label_batch)
     saver = tf.train.Saver()
@@ -91,9 +87,9 @@ def ckpt_test(model_path):
       coord.request_stop()
       coord.join(threads)
 
-def pb_test():
-	return  
-def test():
+def ckpt_prediction():
+  
+def prediction():
   checkpoint = tf.train.get_checkpoint_state(FLAGS.model)
   model_path = checkpoint.model_checkpoint_path
   print('测试模型名：')
@@ -101,7 +97,7 @@ def test():
   ckpt_test(model_path)
 
 def main(unused_argv):
-  test()
+  prediction()
 
 if __name__ == '__main__':
   tf.app.run()

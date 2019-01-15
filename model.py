@@ -5,7 +5,6 @@ import sys
 import tensorflow as tf
 import layer
 import utils
-from datareader import datareader
 
 class Mnet10:
   def __init__(self, initializer='xavier', norm='batch', is_training=True, keep_prob = 0.8,learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08):
@@ -59,12 +58,18 @@ class Mnet10:
     
     # 6th Layer: fully connected layer
     self.fc2 = layer.fc(self.dropout1, 10, initializer=self.initializer, relu=False, is_training=self.is_training, norm=None, name='fc2')
+    
 
-    loss = self.netloss(self.fc2,label_batch)
-    correct_prediction=tf.equal(tf.argmax(self.fc2,1), label_batch)
-    accuracy=tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
-    return loss,accuracy
-    #return loss,accuracy,self.fc2,tf.argmax(self.fc2,1),label_batch
+    if not label_batch == None: 
+      loss = self.netloss(self.fc2,label_batch)
+      correct_prediction=tf.equal(tf.argmax(self.fc2,1), label_batch)
+      accuracy=tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
+      return loss,accuracy
+      #return loss,accuracy,self.fc2,tf.argmax(self.fc2,1),label_batch
+    else:
+      #prediction时，label=None，无需返回
+      return self.fc2
+      #return tf.argmax(self.fc2,1)
   def optimize(self, optimize_type,loss):
     if optimize_type == 'Adam':
       optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon, name='Adam')

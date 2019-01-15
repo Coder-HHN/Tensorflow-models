@@ -5,7 +5,7 @@ import logging
 import tensorflow as tf
 from datetime import datetime
 from model import Mnet10
-from datareader import datareader
+from datareader import tf_datareader
 
 FLAGS = tf.flags.FLAGS
 
@@ -24,7 +24,7 @@ def ckpt_test(model_path):
   with graph.as_default():
     mnet10 = Mnet10(is_training=False, keep_prob = 1)
     #设置管道读取
-    input_reader = datareader(FLAGS.input_file, image_height=FLAGS.image_height, image_width=FLAGS.image_width,
+    input_reader = tf_datareader(FLAGS.input_file, image_height=FLAGS.image_height, image_width=FLAGS.image_width,
          image_mode=FLAGS.image_mode, batch_size=FLAGS.batch_size, min_queue_examples=1024, num_threads=8, name='Input')
     #读取训练集数据
     image_batch,label_batch = input_reader.pipeline_read('test')

@@ -5,28 +5,33 @@ import logging
 import tensorflow as tf
 from datetime import datetime
 from model import Mnet10
-from datareader import datareader
+from datareader import image_datareader
 
 FLAGS = tf.flags.FLAGS
 
 
 tf.flags.DEFINE_string('model', '/home/dell/Tensorflow/test/checkpoints/20190113-2155', 'model path (.pb) or (.ckpt)')
-tf.flags.DEFINE_string('input_image_folder', './image', 'Path of input images')
+tf.flags.DEFINE_string('input_image_folder', './images', 'Path of input images')
 
 tf.flags.DEFINE_integer('image_width', 128, 'width of image, default: 128')
 tf.flags.DEFINE_integer('image_height', 128, 'height of image, default: 128')
 tf.flags.DEFINE_integer('image_channals', 1, 'channal of image, default: 1')
-tf.flags.DEFINE_integer('image_number', 100, 'the number of input images, default: 100')
+
 
 def ckpt_prediction(model_path):
+
   graph = tf.Graph()
   with graph.as_default():
-    mnet10 = Mnet10(is_training=False, keep_prob = 1)
-    
-    image=tf.placeholder(tf.float32,[1,FLAGS.image_width, FLAGS.image_height, FLAGS.image_channals])
 
-    loss,accuracy = mnet10.model(image_batch=image_batch,label_batch=label_batch)
-    #loss,accuracy,fc,label_y,label_origin = mnet10.model(image_batch=image_batch,label_batch=label_batch)
+    mnet10 = Mnet10(is_training=False, keep_prob = 1)
+   
+    reader = image_datareader(FLAGS.input_image_folder, image_height=FLAGS.image_height, image_width=FLAGS.image_width, 
+                      image_mode='L',image_type='jpg', name='input')
+    image_number,images_list,image_batch = reader.read_image_batch()
+
+    
+    #获取最后一个全连接层fc2的输出
+    prediction_fc = mnet10.model(image_batch=image_batch)
     saver = tf.train.Saver()
     
   with tf.Session(graph=graph) as sess:
@@ -36,9 +41,8 @@ def ckpt_prediction(model_path):
     restore.restore(sess, model_path)
 
     #sess.run(tf.global_variables_initializer())
-    test_iter = 0
-    max_test_iter = FLAGS.test_iter
-    test_accuracy_total = 0
+    predict_iter = 0
+    max_predict_iter = image_number
 
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
@@ -51,7 +55,7 @@ def ckpt_prediction(model_path):
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
-    file_handler = logging.FileHandler('test.log',mode='w')
+    file_handler = logging.FileHandler('prediction.log',mode='w')
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
 
@@ -63,18 +67,13 @@ def ckpt_prediction(model_path):
     logger.addHandler(stream_handler)
 
     try:
-      for i in range(max_test_iter): 
+      for i in range(max_predict_iter): 
         if not coord.should_stop():
-          test_loss_val,accuracy_val = sess.run([loss,accuracy])
-          #test_loss_val,accuracy_val,fc_val,label_y_val,label_origin_val = sess.run([loss,accuracy,fc,label_y,label_origin])
-          logging.info('-----------Batch: %d:-------------' % test_iter)
-          logging.info('  test_loss   : {}'.format(test_loss_val))
-          logging.info('  test_accuracy   : {}%'.format(accuracy_val*100))
-          #logging.info('  fc   : {}'.format(fc_val))
-          #logging.info('  label_y   : {}'.format(label_y_val))
-          #logging.info('  label_origin   : {}'.format(label_origin_val))
-          test_accuracy_total = test_accuracy_total+accuracy_val
-          test_iter += 1
+          prediction_val = sess.run([prediction_fc])
+          logging.info('-----------The image: %d:-------------' % predict_iter)
+          logging.info('  picture name   : {}%'.format(images_list[predict_iter]))
+          logging.info('  prediction   : {}'.format(prediction_val))
+          predict_iter += 1
 
     except KeyboardInterrupt:
       logging.info('Interrupted')
@@ -82,19 +81,18 @@ def ckpt_prediction(model_path):
     except Exception as e:
       coord.request_stop(e)
     finally:
-      logging.info('-----------Test Finish-------------')
-      logging.info('  test_accuracy_average   : {}'.format(test_accuracy_total/max_test_iter))
       coord.request_stop()
       coord.join(threads)
 
-def ckpt_prediction():
-  
+def pb_prediction():
+  return
+
 def prediction():
   checkpoint = tf.train.get_checkpoint_state(FLAGS.model)
   model_path = checkpoint.model_checkpoint_path
-  print('测试模型名：')
+  print('预测模型名：')
   print(model_path)
-  ckpt_test(model_path)
+  ckpt_prediction(model_path)
 
 def main(unused_argv):
   prediction()

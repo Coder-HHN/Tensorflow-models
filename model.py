@@ -68,8 +68,8 @@ class Mnet10:
       #return loss,accuracy,self.fc2,tf.argmax(self.fc2,1),label_batch
     else:
       #prediction时，label=None，无需返回
-      return self.fc2
-      #return tf.argmax(self.fc2,1)
+      #return self.fc2
+      return tf.argmax(self.fc2,1)
   def optimize(self, optimize_type,loss):
     if optimize_type == 'Adam':
       optimizer = tf.train.AdamOptimizer(self.learning_rate, beta1=self.beta1, beta2=self.beta2, epsilon=self.epsilon, name='Adam')

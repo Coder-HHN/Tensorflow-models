@@ -18,7 +18,7 @@ tf.flags.DEFINE_integer('image_height', 128, 'height of image, default: 128')
 tf.flags.DEFINE_integer('image_channals', 1, 'channal of image, default: 1')
 
 
-def ckpt_prediction(model_path):
+def ckpt_prediction(model_path,classes):
 
   graph = tf.Graph()
   with graph.as_default():
@@ -41,9 +41,6 @@ def ckpt_prediction(model_path):
     restore.restore(sess, model_path)
 
     #sess.run(tf.global_variables_initializer())
-    predict_iter = 0
-    max_predict_iter = image_number
-
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
     
@@ -67,14 +64,13 @@ def ckpt_prediction(model_path):
     logger.addHandler(stream_handler)
 
     try:
-      for i in range(max_predict_iter): 
-        if not coord.should_stop():
-          prediction_val = sess.run([prediction_fc])
-          logging.info('-----------The image: %d:-------------' % predict_iter)
-          logging.info('  picture name   : {}%'.format(images_list[predict_iter]))
-          logging.info('  prediction   : {}'.format(prediction_val))
-          predict_iter += 1
-
+      prediction_val = sess.run(prediction_fc)
+      print(prediction_val)
+      for i in range(image_number):
+        logging.info('-----------The image: %d:-------------' % i)
+        logging.info('  picture name   : {}'.format(images_list[i]))
+        logging.info('  prediction_label   : {}'.format(prediction_val[i]))
+        logging.info('  prediction_class   : {}'.format(classes[prediction_val[i]]))
     except KeyboardInterrupt:
       logging.info('Interrupted')
       coord.request_stop()
@@ -88,11 +84,12 @@ def pb_prediction():
   return
 
 def prediction():
+  classes = ['2S1','BMP2','BRDM_2','BTR70','BTR_60','D7','T62','T72','ZIL131','ZSU_23_4']
   checkpoint = tf.train.get_checkpoint_state(FLAGS.model)
   model_path = checkpoint.model_checkpoint_path
   print('预测模型名：')
   print(model_path)
-  ckpt_prediction(model_path)
+  ckpt_prediction(model_path,classes)
 
 def main(unused_argv):
   prediction()

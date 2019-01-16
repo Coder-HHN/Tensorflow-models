@@ -3,8 +3,9 @@
 import os
 import sys
 import tensorflow as tf
-from PIL import Image as Img
+import numpy as np 
 
+from PIL import Image as Img
 import utils
 
 """
@@ -146,8 +147,10 @@ class tf_datareader:
       return image_batch,label_batch
 
 ###
+# 一种直接读取图片组成batch的方式，无需转为tfrecord
 # 注意：这个类设计之初仅是为了prediction时读取图像数据所用，因此仅会读取图像信息，而不会读取label信息，
-#      若需要将其用于training时读取图像数据，请自行修改添加代码  
+#      若需要将其用于training时读取图像数据，请自行修改添加代码
+#     
 class image_datareader():
 
   def __init__(self, images_folder_path, image_height=128, image_width=128, image_mode='L',image_type='jpg', name=''):
@@ -167,46 +170,41 @@ class image_datareader():
     self.image_type = image_type
     self.name = name
 
-  def _preprocess(self, image):
-    """ 读取并对TFrecords文件解码
-        若需要处理非L/RGB/RGBA类型的图像，请自行添加代码
-        python Image 读入的图像按照[height,weight,depth]维度排列
-    Return:
-      image: 3D tensor [image_width, image_height, image_depth]
-    """
-    if self.image_mode == 'L':
-      image = tf.reshape(image,[self.image_width,self.image_height,1])
-      image = utils.convert2float(image)
-    elif self.image_mode == 'RGB':
-      image = tf.reshape(image,[self.image_width,self.image_height,3])
-      image = utils.convert2float(image)
-    elif self.image_mode == 'RGBA':
-      image = tf.reshape(image,[self.image_width,self.image_height,4])
-      image = utils.convert2float(image)
-      #image = tf.cast(image,tf.float32)*(1./255)-0.5
-    else:
-      print('The image mode must be L/RGB/RGBA!')
-      sys.exit()
-    return image
-
-
   def read_image_batch(self):
-
+    """
+      return: a tensor [batch, image_height, image_width, deepth]
+    """
     with tf.name_scope(self.name):
       images_list = []
       for root,dirs,files in os.walk(self.images_folder_path):
         for filetmp in files:
           if os.path.splitext(filetmp)[1]=='.'+self.image_type:
             images_list.append(os.path.join(root,filetmp))
-      
+
       image_number = len(images_list)
-      filename_queue = tf.train.string_input_producer(images_list,shuffle=False)  #构造文件名队列 
-      reader = tf.WholeFileReader()
-      _,image_value = reader.read(filename_queue)
-      image_decode = tf.image.decode_jpeg(image_value,channels = 1)
-      image = self._preprocess(image_decode)
-      image_batch = tf.train.batch(image, batch_size=image_number, capacity=image_number+10)
-      return image_number,images_list,image_batch
+      #读取image并转为array，此时，array为[image_height, image_width, deepth]
+      #对灰度图而言，array为[image_height, image_width]，需做后续处理
+      image = Img.open(images_list[0])
+      image = image.resize((self.image_height,self.image_width))
+      image_array = np.array(image)
+      
+      #对arry做升维处理，变为[batch, image_height, image_width, deepth]或[batch, image_height, image_width]
+      image_batch = np.expand_dims(image_array,axis=0)
+      if image_number >1:
+        for i in range(1,image_number):
+          image = Img.open(images_list[i])
+          image_array = np.array(image)
+          image_array = np.expand_dims(image_array,axis=0)
+          #在axis=0维度上合并图片,最终获得一个batch
+          image_batch = np.append(image_batch,image_array,axis=0)
+      
+      #将array转为tensor
+      image_batch = tf.convert_to_tensor(image_batch)
+      #对灰度图而言，还需从[batch, image_height, image_width]转为[batch, image_height, image_width, 1]
+      if self.image_mode =='L':
+        image_batch = tf.reshape(image_batch,[-1,self.image_width,self.image_height,1])
+      image_batch = utils.batch_convert2float(image_batch)
+      return image_number,files,image_batch
 ###
 def check_tf_reader():
   """ 检验reader读取的图像结果是否正确
@@ -265,7 +263,7 @@ def check_image_reader():
     os.makedirs('./image') 
   with tf.Graph().as_default():
     reader = image_datareader(imagePath,image_height=128,image_width=128,image_mode='L',image_type='jpg', name='')
-    image = reader.read_image_batch()
+    image_number,images_list,image = reader.read_image_batch()
     #tensorflow中要求灰度图为[h,w,1]，但fromarray要求灰度图为[h,w]，因此需要处理一下
     if image_mode=='L':
       image = utils.batch_gray_reshape(image,image_heigth,image_width)
@@ -282,9 +280,9 @@ def check_image_reader():
           if not coord.should_stop():
             example = sess.run(image)
             print(example[0])
-            for i in range(1):
+            for i in range(13):
               img = Img.fromarray(example[i],image_mode)
-              img.save('image/'+str(k)+'_'+str(i)+'.jpg')
+              img.save('image/'+str(k)+'_'+str(i)+'_'+images_list[i]+'.jpg')
       except KeyboardInterrupt:
         print('Interrupted')
         coord.request_stop()

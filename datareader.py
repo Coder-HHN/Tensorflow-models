@@ -166,6 +166,7 @@ class image_datareader():
     self.image_mode = image_mode
     self.image_type = image_type
     self.name = name
+
   def _preprocess(self, image):
     """ 读取并对TFrecords文件解码
         若需要处理非L/RGB/RGBA类型的图像，请自行添加代码
@@ -174,19 +175,20 @@ class image_datareader():
       image: 3D tensor [image_width, image_height, image_depth]
     """
     if self.image_mode == 'L':
-      image = tf.reshape(image,[self.image_height,self.image_width,1])
+      image = tf.reshape(image,[self.image_width,self.image_height,1])
       image = utils.convert2float(image)
     elif self.image_mode == 'RGB':
-      image = tf.reshape(image,[self.image_height,self.image_width,1])
+      image = tf.reshape(image,[self.image_width,self.image_height,3])
       image = utils.convert2float(image)
     elif self.image_mode == 'RGBA':
-      image = tf.reshape(image,[self.image_height,self.image_width,1])
+      image = tf.reshape(image,[self.image_width,self.image_height,4])
       image = utils.convert2float(image)
       #image = tf.cast(image,tf.float32)*(1./255)-0.5
     else:
       print('The image mode must be L/RGB/RGBA!')
       sys.exit()
     return image
+
 
   def read_image_batch(self):
 
@@ -196,33 +198,36 @@ class image_datareader():
         for filetmp in files:
           if os.path.splitext(filetmp)[1]=='.'+self.image_type:
             images_list.append(os.path.join(root,filetmp))
-
+      
       image_number = len(images_list)
       filename_queue = tf.train.string_input_producer(images_list,shuffle=False)  #构造文件名队列 
       reader = tf.WholeFileReader()
       _,image_value = reader.read(filename_queue)
-      image_decode = tf.decode_raw(image_value,tf.uint8)
+      image_decode = tf.image.decode_jpeg(image_value,channels = 1)
       image = self._preprocess(image_decode)
-      image_batch = tf.train.batch([image], batch_size=image_number, capacity=image_number+10)
+      image_batch = tf.train.batch(image, batch_size=image_number, capacity=image_number+10)
       return image_number,images_list,image_batch
 ###
-def check_reader():
+def check_tf_reader():
   """ 检验reader读取的图像结果是否正确
   """
 
-  #TFrecordPath = './TFrecord'	#设置TFrecord文件夹路径
-  imagePath = './images'
+  TFrecordPath = './TFrecord'	#设置TFrecord文件夹路径
   #image_height,image_width,image_mode= utils.get_image_info('./Data/train/airplane/airplane5.png')
+  image_width = 128
+  image_heigth = 128
   image_mode = 'L'
   if not os.path.exists('./image'):
     os.makedirs('./image') 
   with tf.Graph().as_default():
-    #reader = tf_datareader('./TFrecord',128, 128, image_mode, batch_size=64, 
-    #	            min_queue_examples=1024, num_threads=1024, name='datareader')
-    reader = image_datareader(imagePath,image_height=128,image_width=128,image_mode='L',image_type='jpg', name='')
-    #image,label = reader.pipeline_read('train')
-    image = reader.read_image_batch()
-    #image = utils.batch_convert2int(image)
+    reader = tf_datareader('./TFrecord',image_heigth, image_width, image_mode, batch_size=1, 
+    	            min_queue_examples=1024, num_threads=1024, name='datareader')
+    image,label = reader.pipeline_read('train')
+    #tensorflow中要求灰度图为[h,w,1]，但fromarray要求灰度图为[h,w]，因此需要处理一下
+    if image_mode=='L':
+      image = utils.batch_gray_reshape(image,image_heigth,image_width)
+    #float存储图像显示有问题
+    image = utils.batch_convert2int(image)
     with tf.Session() as sess:
       init_op = tf.global_variables_initializer()
       sess.run(init_op)
@@ -230,14 +235,55 @@ def check_reader():
       threads = tf.train.start_queue_runners(coord = coord)
       try:
       	#执行3次，每次取13张样例，确认批样例随机读取代码的正确性
-        for k in range(3):
+        for k in range(1):
           if not coord.should_stop():
-            #example,l = sess.run([image,label])
-            example = sess.run([image])
-            print(example)
-            for i in range(10):
+            example,l = sess.run([image,label])
+            print(example[0])
+            for i in range(1):
               img = Img.fromarray(example[i],image_mode)
-              #img.save('image/'+str(k)+'_'+str(i)+'_Label_'+str(l[i])+'.jpg')
+              img.save('image/'+str(k)+'_'+str(i)+'_Label_'+str(l[i])+'.jpg')
+      except KeyboardInterrupt:
+        print('Interrupted')
+        coord.request_stop()
+      except tf.errors.OutOfRangeError:
+        print('OutOfRangeError')
+        coord.request_stop()
+      finally:
+        # When done, ask the threads to stop.
+        coord.request_stop()
+        coord.join(threads)
+
+def check_image_reader():
+  """ 检验reader读取的图像结果是否正确
+  """
+  imagePath = './images'
+  #image_height,image_width,image_mode= utils.get_image_info('./Data/train/airplane/airplane5.png')
+  image_width = 128
+  image_heigth = 128
+  image_mode = 'L'
+  if not os.path.exists('./image'):
+    os.makedirs('./image') 
+  with tf.Graph().as_default():
+    reader = image_datareader(imagePath,image_height=128,image_width=128,image_mode='L',image_type='jpg', name='')
+    image = reader.read_image_batch()
+    #tensorflow中要求灰度图为[h,w,1]，但fromarray要求灰度图为[h,w]，因此需要处理一下
+    if image_mode=='L':
+      image = utils.batch_gray_reshape(image,image_heigth,image_width)
+    #float存储图像显示有问题
+    image = utils.batch_convert2int(image)
+    with tf.Session() as sess:
+      init_op = tf.global_variables_initializer()
+      sess.run(init_op)
+      coord = tf.train.Coordinator()
+      threads = tf.train.start_queue_runners(coord = coord)
+      try:
+        #执行3次，每次取13张样例，确认批样例随机读取代码的正确性
+        for k in range(1):
+          if not coord.should_stop():
+            example = sess.run(image)
+            print(example[0])
+            for i in range(1):
+              img = Img.fromarray(example[i],image_mode)
               img.save('image/'+str(k)+'_'+str(i)+'.jpg')
       except KeyboardInterrupt:
         print('Interrupted')
@@ -251,4 +297,4 @@ def check_reader():
         coord.join(threads)
 
 if __name__ == '__main__':
-  check_reader()
+  check_image_reader()

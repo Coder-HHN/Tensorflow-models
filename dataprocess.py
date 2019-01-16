@@ -168,8 +168,8 @@ def test_writer():
   """ 示例程序:将图像及标签写入TFrecord文件
   """
   datapath = './Data'  #设置TFrecord文件夹路径
-  #classes = ['airplane','automobile','ship']
-  classes = ['2S1','BMP2','BRDM_2','BTR70','BTR_60','D7','T62','T72','ZIL131','ZSU_23_4']
+  classes = ['airplane','automobile','ship']
+  #classes = ['2S1','BMP2','BRDM_2','BTR70','BTR_60','D7','T62','T72','ZIL131','ZSU_23_4']
   image_width = 128
   image_height = 128
   writer = dataprocess(datapath,classes,image_height,image_width,is_devide=True, by_class=True, num_per_tf=5)

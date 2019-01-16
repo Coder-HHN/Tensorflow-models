@@ -35,6 +35,9 @@ def convert2float(image):
   """
   return tf.cast(image,tf.float32)*(1./255)
 
+def gray_reshape(images, image_heigth, image_width):
+  return tf.reshape(image,[image_width,image_heigth])
+
 def batch_convert2int(images):
   """
   Args:
@@ -52,3 +55,6 @@ def batch_convert2float(images):
     4D float tensor
   """
   return tf.map_fn(convert2float, images, dtype=tf.float32)
+
+def batch_gray_reshape(images, image_heigth, image_width):
+  return tf.map_fn(lambda x: gray_reshape(x,image_width,image_heigth), images, dtype=tf.float32)
